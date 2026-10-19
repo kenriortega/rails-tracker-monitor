@@ -85,3 +85,17 @@ test("diagnostic error categories never echo sensitive server text", () => {
   assert.equal(safeErrorCode(new Error("Unexpected response: password=secret")), "REQUEST_OR_PROTOCOL_ERROR");
   assert.equal(safeErrorCode({cause: {code: "ENOTFOUND"}}), "ENOTFOUND");
 });
+
+test("movement times keep the raw difference and add a London-corrected one", () => {
+  const audit = new MovementAudit(null);
+  // 1760000000000 is 09 October 2025, inside BST: the encoding hides one hour.
+  audit.consume(JSON.stringify([
+    {header: {msg_type: "0003"}, body: {train_id: "A", loc_stanox: "123", actual_timestamp: "1760000000000"}}
+  ]), 1760000010000);
+  const times = audit.summary(false).movementTimes;
+  assert.equal(times.rawDifferenceSeconds?.median, 10);
+  assert.equal(times.correctedDifferenceSeconds?.median, 3610);
+  assert.deepEqual(times.correction, {
+    timezone: "Europe/London", applied: 1, ambiguous: 0, nonexistent: 0, offsetsSecondsSeen: [3600]
+  });
+});

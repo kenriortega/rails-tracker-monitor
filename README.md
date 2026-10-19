@@ -30,7 +30,7 @@ npm run db:generate
 
 - `apps/web`: Next.js App Router; componentes shadcn/ui, MapLibre y central de operaciones.
 - `apps/ingestor`: diagnóstico real de CORPUS, SCHEDULE y MOVEMENT. El ingestor persistente sigue pendiente.
-- `packages/domain`: contratos, identidades por fecha, fixtures e interpolación geográfica de demostración.
+- `packages/domain`: contratos, identidades por fecha, conversión de hora local de Londres a UTC, fixtures e interpolación geográfica de demostración.
 - `packages/db`: cliente PostgreSQL bajo demanda y esquema Drizzle con índices GiST.
 - `docs`: análisis de fuentes, arquitectura y siguiente entrega.
 - `fixtures`: reglas para capturas reales futuras. Los fixtures sintéticos actuales viven en `packages/domain/src/fixtures.ts` para compartirlos con la interfaz.
@@ -46,7 +46,7 @@ npm run diagnose:network-rail -- --seconds=60
 
 El comando carga `.env` sin depender del directorio de trabajo del workspace; las variables ya presentes en el entorno tienen prioridad. Descarga CORPUS en memoria, verifica una muestra acotada del horario y abre una suscripción temporal de MOVEMENT durante 45 segundos (configurable de 10 a 120). No modifica suscripciones del portal ni utiliza una suscripción durable existente. Requiere salida HTTPS al portal y a sus descargas firmadas de S3, y TCP al puerto 61618 del broker.
 
-Guarda exclusivamente un resumen sin credenciales ni mensajes originales en `docs/network-rail-diagnostic.json`. Cada ejecución reemplaza el resumen anterior. La muestra del horario **no valida ni importa el archivo completo**. La correspondencia de códigos CORPUS **no certifica coordenadas geográficas**. Un intervalo sin mensajes es inconcluso y se distingue de un rechazo de autenticación.
+Guarda exclusivamente un resumen sin credenciales ni mensajes originales en `docs/network-rail-diagnostic.json`, que es un artefacto local excluido del control de versiones. Cada ejecución reemplaza el resumen anterior. La muestra del horario **no valida ni importa el archivo completo**. La correspondencia de códigos CORPUS **no certifica coordenadas geográficas**. Un intervalo sin mensajes es inconcluso y se distingue de un rechazo de autenticación. Las marcas de tiempo se publican crudas y corregidas: TRUST codifica la hora de pared de Londres como si fuera UTC, y la corrección usa el offset vigente en cada evento en lugar de un desplazamiento fijo.
 
 Los errores se muestran como categorías controladas para evitar que mensajes del servidor expongan datos de la cuenta. Las pruebas usan datos sintéticos y respuestas simuladas; no requieren credenciales ni red.
 
@@ -55,7 +55,7 @@ Más detalle: [diagnóstico de Network Rail](docs/network-rail-access.md).
 ## Integración operativa pendiente
 
 1. Revisar el resultado del diagnóstico de acceso y cobertura.
-2. Ampliar la auditoría a intervalos representativos y documentar los campos necesarios.
+2. Ampliar la auditoría a intervalos representativos y explicar los eventos cuya marca de tiempo sigue por delante de la recepción tras corregir el offset.
 3. Resolver identidades, códigos y geometría del corredor piloto.
 4. Implementar ingesta persistente, deduplicación, reconexión, snapshots y SSE.
 5. Provisionar PostgreSQL con PostGIS, revisar y aplicar migraciones.

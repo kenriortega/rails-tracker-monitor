@@ -38,7 +38,11 @@ El código de salida es cero únicamente si CORPUS y la muestra de horario son v
 
 La cobertura indica qué porcentaje de **reportes de movimiento con STANOX válido** encontró correspondencia en CORPUS. No es el porcentaje de trenes localizados, ni mide precisión geográfica. Los identificadores distintos tampoco equivalen necesariamente a vehículos físicos distintos.
 
-Las diferencias entre recepción y `actual_timestamp` se conservan sin corregir y no se presentan como latencia validada. El horario británico, las correcciones y los reportes manuales requieren análisis antes de interpretar esos valores. El informe no aplica automáticamente un desplazamiento de una hora.
+El informe publica dos diferencias entre recepción y `actual_timestamp`. `rawDifferenceSeconds` se conserva sin corregir como evidencia. `correctedDifferenceSeconds` resuelve antes el instante real: TRUST codifica la hora de pared de Londres como si fuera UTC, así que el valor se ajusta con el offset de `Europe/London` vigente en ese momento, **nunca con un desplazamiento fijo de una hora**.
+
+El bloque `correction` acompaña a esa métrica con la zona aplicada, cuántos valores se corrigieron y los offsets observados. Una hora local no siempre identifica un instante único: en el pliegue de otoño ocurre dos veces y se cuenta en `ambiguous`, y en el salto de primavera no ocurre nunca y se cuenta en `nonexistent`. Esos casos se informan en lugar de resolverse en silencio.
+
+Ninguna de las dos es una latencia validada. Los reportes manuales y las previsiones siguen requiriendo análisis: en la muestra de octubre de 2026 quedaban eventos con marca de tiempo hasta unos cuatro minutos y medio por delante de la recepción incluso después de corregir el offset, y esa diferencia **todavía no tiene explicación comprobada**.
 
 ## Protección de credenciales y límites
 
@@ -52,6 +56,7 @@ Los datos CORPUS se mantienen solo durante la ejecución para resolver códigos.
 - `apps/ingestor/src/diagnostics/http.ts`: acceso HTTPS, redirecciones y lectura gzip.
 - `apps/ingestor/src/diagnostics/stomp.ts`: conexión STOMP acotada.
 - `apps/ingestor/src/diagnostics/audit.ts`: conteos y correspondencias.
-- `apps/ingestor/src/diagnostics/diagnostics.test.ts`: ocho pruebas aisladas de red y credenciales.
+- `apps/ingestor/src/diagnostics/diagnostics.test.ts`: nueve pruebas aisladas de red, credenciales y métricas temporales.
+- `packages/domain/src/time.ts`: conversión de hora local de Londres a instante UTC, compartida con la futura persistencia.
 
-`npm test` ejecuta estas ocho pruebas junto con las cuatro existentes del dominio. `npm run typecheck` verifica ingestor, dominio, esquema y web. El resultado concreto de la última comprobación real está en el archivo JSON generado.
+`npm test` ejecuta estas nueve pruebas junto con las nueve del dominio, cinco de ellas sobre la conversión horaria. `npm run typecheck` verifica ingestor, dominio, esquema y web. El resultado concreto de la última comprobación real está en el archivo JSON generado.

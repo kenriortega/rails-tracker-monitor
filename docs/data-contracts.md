@@ -8,9 +8,47 @@ La escucha de 45 segundos recibió 19 lotes con 445 registros: 420 movimientos (
 
 CORPUS contenía 55.981 registros, 11.621 con STANOX no vacío. SCHEDULE permitió leer y reconocer un registro inicial `JsonTimetableV1`; no se importó ni validó el horario completo. TD, SMART y VSTP todavía no se comprobaron.
 
-La diferencia sin corregir entre recepción y `actual_timestamp` fue negativa en los 420 movimientos, con mediana de −3.574 segundos. Es evidencia de una discrepancia temporal que debe investigarse antes de interpretar retrasos/latencia; es compatible con el problema horario documentado para campos TRUST durante BST, pero esta prueba no identifica por sí sola su causa. No se aplicó una corrección automática.
+La diferencia sin corregir entre recepción y `actual_timestamp` fue negativa en los 420 movimientos, con mediana de −3.574 segundos. La causa quedó identificada y corregida: TRUST codifica la hora de pared de Londres como si fuera UTC. Ver «Semántica temporal de TRUST».
 
 Resumen reproducible en `network-rail-diagnostic.json`; funcionamiento del comando en `network-rail-access.md`.
+
+## Semántica temporal de TRUST
+
+Medido el 19 de octubre de 2026 sobre cinco escuchas acotadas, unos 3.500 reportes de movimiento. Los recuentos son de esas muestras, no de la red completa ni de un día entero.
+
+### Desplazamiento horario
+
+`actual_timestamp` es epoch en milisegundos con la hora de pared de Londres ya incorporada: codifica hora local como si fuera UTC. `resolveLondonLocalEpoch` en `packages/domain/src/time.ts` recupera el instante real con el offset vigente en cada evento. **No aplicar un desplazamiento fijo de una hora**: rompe en los cambios de horario y no distingue las horas locales ambiguas de las inexistentes.
+
+### Granularidad de un minuto
+
+**Los ~3.500 timestamps observados estaban alineados al minuto exacto, sin excepciones.** TRUST no publica segundos en este campo.
+
+Consecuencia directa: alrededor del 30 % de los reportes llega con una marca de tiempo *posterior* al momento de recepción. Un evento real de las 10:00:10 publicado como 10:01:00 y transmitido a las 10:00:15 aparece 45 segundos por delante de sí mismo. Entre el 78 % y el 84 % de esos adelantos, según la muestra, cabe dentro de esa ventana de un minuto.
+
+No calcular ni publicar latencias por debajo de unos 60 segundos: serían ruido de cuantización. No mostrar segundos en la interfaz.
+
+### Llegadas adelantadas sin causa confirmada
+
+Queda un ~5 % de los reportes, 41 a 44 por muestra, con marcas de hasta unos cuatro minutos y medio por delante de la recepción. Perfil constante en todas las muestras:
+
+| Rasgo | Observación |
+|---|---|
+| Tipo de evento | `ARRIVAL` en el 100 % de los casos |
+| Origen | `AUTOMATIC` siempre; los reportes `MANUAL` nunca aparecen adelantados |
+| Corrección | `correction_ind: false` siempre |
+| Ubicación | 44 eventos en 44 STANOX distintos, 22 operadores: sin agrupación |
+| Horario previsto | No son copias de `planned_timestamp`: 6 coincidencias de 40 |
+
+**La causa no está establecida.** Se probó la hipótesis de que fueran previsiones (`planned_timestamp` más el retraso vigente): coincidió en 28 de 44, pero la prueba es circular si `timetable_variation` se deriva de la diferencia entre real y previsto, así que no concluye nada. Que no coincida en el 100 % tampoco tiene explicación.
+
+Se descartó un desfase del reloj local: la máquina de medición estaba a 2 ms de NTP.
+
+### Consecuencias para la persistencia
+
+- `observed_at` puede ser **posterior** a `received_at`. No añadir una restricción que lo prohíba ni descartar esos eventos.
+- Deduplicar y ordenar por `received_at` o por secuencia, nunca por `observed_at`.
+- Tratar `observed_at` como un valor con resolución de un minuto, no como un instante exacto.
 
 ## Fuentes previstas
 
@@ -45,7 +83,7 @@ La UI actual emplea únicamente fixtures `demo`. Los umbrales de frescura reales
 
 Guardar el evento original antes de proyectar. Confirmar mensajes únicamente después de persistencia duradera. Diseñar deduplicación por feed y mensaje/contenido según los identificadores auditados. Guardar orden de recepción y tiempo del evento por separado. No descartar automáticamente correcciones por tener timestamp antiguo. Registrar los huecos por desconexión y reconstruir cuando sea posible; nunca prometer replay de intervalos que no se capturaron.
 
-Interpretar fechas de servicio en Europe/London y almacenar instantes en UTC. Auditar individualmente los campos horarios TRUST, incluidos los problemas históricos documentados durante BST; no aplicar una resta de una hora a todos los timestamps. Cubrir medianoche, cambio DST y horarios que sobrepasan las 24 horas en la integración real.
+Interpretar fechas de servicio en Europe/London y almacenar instantes en UTC mediante `resolveLondonLocalEpoch`, nunca con una resta fija de una hora. Respetar las reglas de «Semántica temporal de TRUST»: `observed_at` con resolución de minuto, que puede ser posterior a `received_at`, y orden por recepción. Cubrir medianoche, cambio DST y horarios que sobrepasan las 24 horas en la integración real.
 
 ## Auditoría adicional pendiente
 

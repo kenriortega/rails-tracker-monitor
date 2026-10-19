@@ -16,7 +16,7 @@ Drizzle describe ubicaciones, segmentos, horarios, circulaciones, eventos origin
 
 ## Próxima arquitectura operativa
 
-El ingestor persistente recibirá STOMP, guardará eventos y actualizará proyecciones con transacciones idempotentes. El servidor web entregará un snapshot inicial y cambios mediante SSE. Versionar snapshots/deltas, usar IDs reanudables y resincronizar al reconectar. Las credenciales permanecen en procesos del servidor. Limitar por viewport, filtros y permisos.
+El ingestor persistente recibirá STOMP, guardará eventos y actualizará proyecciones con transacciones idempotentes. El orden y la deduplicación se apoyarán en la recepción, nunca en `observed_at`: las marcas de TRUST tienen resolución de un minuto y alrededor del 30 % resultan posteriores a su propia recepción, así que el esquema no debe prohibir ese caso. Ver «Semántica temporal de TRUST» en `data-contracts.md`. El servidor web entregará un snapshot inicial y cambios mediante SSE. Versionar snapshots/deltas, usar IDs reanudables y resincronizar al reconectar. Las credenciales permanecen en procesos del servidor. Limitar por viewport, filtros y permisos.
 
 La tabla `raw_events` permite reconstrucción futura, pero no basta por sí sola: hacen falta versiones de la lógica, estados iniciales, referencias históricas y retención definida. Particionado y almacenamiento de archivo se decidirán después de medir el volumen. Redis/colas adicionales no se incorporan sin evidencia de necesidad.
 

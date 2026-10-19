@@ -42,7 +42,7 @@ El informe publica dos diferencias entre recepción y `actual_timestamp`. `rawDi
 
 El bloque `correction` acompaña a esa métrica con la zona aplicada, cuántos valores se corrigieron y los offsets observados. Una hora local no siempre identifica un instante único: en el pliegue de otoño ocurre dos veces y se cuenta en `ambiguous`, y en el salto de primavera no ocurre nunca y se cuenta en `nonexistent`. Esos casos se informan en lugar de resolverse en silencio.
 
-Ninguna de las dos es una latencia validada. Los reportes manuales y las previsiones siguen requiriendo análisis: en la muestra de octubre de 2026 quedaban eventos con marca de tiempo hasta unos cuatro minutos y medio por delante de la recepción incluso después de corregir el offset, y esa diferencia **todavía no tiene explicación comprobada**.
+Ninguna de las dos es una latencia validada, y por debajo de unos 60 segundos no significan nada: `actual_timestamp` tiene resolución de un minuto. Por eso cerca del 30 % de los reportes llega con una marca posterior a su propia recepción. El detalle de la medición y el ~5 % de llegadas adelantadas sin causa confirmada están en [contratos y auditoría de fuentes](data-contracts.md).
 
 ## Protección de credenciales y límites
 

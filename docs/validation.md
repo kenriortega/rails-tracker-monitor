@@ -30,3 +30,11 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Diferencias crudas entre −3.800 y −3.219 segundos, mediana −3.572. Corregidas entre −200 y +381 segundos, mediana **+28**. Offset aplicado a los 394 valores, un único offset observado (3.600 s), cero casos ambiguos o inexistentes.
 - Quedan 153 valores negativos tras la corrección: eventos con marca de tiempo por delante de la recepción, hasta unos 200 segundos. No está comprobado si corresponden a reportes manuales, previsiones o desajustes de reloj. No se presenta ninguna de las dos métricas como latencia validada.
 - No se tocó la interfaz, el esquema ni la infraestructura. La web sigue en modo demo.
+
+## Investigación de las marcas adelantadas
+
+- Cinco escuchas acotadas del feed real, unos 3.500 reportes de movimiento, mediante una sonda temporal que no se incorporó al repositorio. Solo se agregaron recuentos de campos enumerados; no se guardaron payloads ni identificadores.
+- Resultado principal: el 100 % de los `actual_timestamp` observados está alineado al minuto exacto. Esa cuantización explica entre el 78 % y el 84 % de los eventos adelantados, según la muestra.
+- Resultado secundario: entre 41 y 44 eventos por muestra quedan hasta unos cuatro minutos y medio por delante, todos `ARRIVAL`, todos automáticos, sin agrupación por ubicación ni operador. **Causa no establecida**; la hipótesis de previsión no se pudo comprobar sin circularidad.
+- Descartado como causa: el reloj local, verificado a 2 ms contra NTP.
+- Sin cambios de código. La investigación solo produjo documentación.

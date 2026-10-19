@@ -16,11 +16,11 @@ Drizzle describe ubicaciones, segmentos, horarios, circulaciones, eventos origin
 
 ## Próxima arquitectura operativa
 
-El ingestor persistente recibirá STOMP, guardará eventos y actualizará proyecciones con transacciones idempotentes. El orden y la deduplicación se apoyarán en la recepción, nunca en `observed_at`: las marcas de TRUST tienen resolución de un minuto y alrededor del 30 % resultan posteriores a su propia recepción, así que el esquema no debe prohibir ese caso. Ver «Semántica temporal de TRUST» en `data-contracts.md`. El servidor web entregará un snapshot inicial y cambios mediante SSE. Versionar snapshots/deltas, usar IDs reanudables y resincronizar al reconectar. Las credenciales permanecen en procesos del servidor. Limitar por viewport, filtros y permisos.
+El consumidor persistente de MOVEMENT ya existe en `apps/ingestor/src/consumer.ts`: `ConnectFailover` aporta la reconexión con retroceso exponencial, la suscripción usa ack `client-individual` y cada mensaje se confirma después del commit de su transacción. Las proyecciones todavía no se actualizan. El orden y la deduplicación se apoyarán en la recepción, nunca en `observed_at`: las marcas de TRUST tienen resolución de un minuto y alrededor del 30 % resultan posteriores a su propia recepción, así que el esquema no debe prohibir ese caso. Ver «Semántica temporal de TRUST» en `data-contracts.md`. El servidor web entregará un snapshot inicial y cambios mediante SSE. Versionar snapshots/deltas, usar IDs reanudables y resincronizar al reconectar. Las credenciales permanecen en procesos del servidor. Limitar por viewport, filtros y permisos.
 
 La tabla `raw_events` permite reconstrucción futura, pero no basta por sí sola: hacen falta versiones de la lógica, estados iniciales, referencias históricas y retención definida. Particionado y almacenamiento de archivo se decidirán después de medir el volumen. Redis/colas adicionales no se incorporan sin evidencia de necesidad.
 
-Existe un diagnóstico STOMP acotado en `apps/ingestor/src/diagnose.ts`, comprobado contra Network Rail. No se han implementado el consumidor persistente, SSE, importadores completos, persistencia activa ni alertas reales. El panel de fuentes y la barra inferior de la web continúan comunicando que esa interfaz usa demostración.
+Existe un diagnóstico STOMP acotado en `apps/ingestor/src/diagnose.ts`, comprobado contra Network Rail. No se han implementado SSE, importadores completos, proyecciones ni alertas reales. El panel de fuentes y la barra inferior de la web continúan comunicando que esa interfaz usa demostración.
 
 ## Revisión de dependencias
 

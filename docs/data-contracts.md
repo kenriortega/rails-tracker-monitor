@@ -81,7 +81,9 @@ La UI actual emplea únicamente fixtures `demo`. Los umbrales de frescura reales
 
 ## Reglas de la próxima ingesta
 
-Guardar el evento original antes de proyectar. Confirmar mensajes únicamente después de persistencia duradera. Diseñar deduplicación por feed y mensaje/contenido según los identificadores auditados. Guardar orden de recepción y tiempo del evento por separado. No descartar automáticamente correcciones por tener timestamp antiguo. Registrar los huecos por desconexión y reconstruir cuando sea posible; nunca prometer replay de intervalos que no se capturaron.
+Guardar el evento original antes de proyectar. Confirmar mensajes únicamente después de persistencia duradera. Ambas reglas ya se cumplen en `apps/ingestor/src/consumer.ts`.
+
+La clave de deduplicación de `raw_events` es el **SHA-256 del registro serializado con las claves ordenadas**. Deduplica reentregas del mismo mensaje, que es lo que un registro de auditoría debe evitar; no intenta decidir si dos eventos distintos describen lo mismo. Esa decisión semántica corresponde a la proyección, que sí tiene contexto. Se descartó una clave compuesta por `msg_type`, `train_id`, `event_type`, `loc_stanox` y `actual_timestamp`: con marcas de resolución de un minuto, dos eventos legítimos del mismo tren en la misma ubicación y el mismo minuto habrían colapsado en uno. El orden de claves de `jsonb` no afecta al hash, verificado releyendo 200 payloads almacenados. Guardar orden de recepción y tiempo del evento por separado. No descartar automáticamente correcciones por tener timestamp antiguo. Registrar los huecos por desconexión y reconstruir cuando sea posible; nunca prometer replay de intervalos que no se capturaron.
 
 Interpretar fechas de servicio en Europe/London y almacenar instantes en UTC mediante `resolveLondonLocalEpoch`, nunca con una resta fija de una hora. Respetar las reglas de «Semántica temporal de TRUST»: `observed_at` con resolución de minuto, que puede ser posterior a `received_at`, y orden por recepción. Cubrir medianoche, cambio DST y horarios que sobrepasan las 24 horas en la integración real.
 

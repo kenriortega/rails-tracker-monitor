@@ -7,3 +7,5 @@ export function createDatabase(connectionString: string) {
   const pool = new Pool({connectionString, max: 5});
   return {db: drizzle(pool, {schema}), close: () => pool.end()};
 }
+
+export * from "./schema";

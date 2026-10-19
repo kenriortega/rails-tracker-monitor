@@ -39,10 +39,22 @@ Levanta PostgreSQL 16 con PostGIS 3.5 en `127.0.0.1:5434` y aplica las migracion
 
 Las credenciales del contenedor son triviales a propósito: escucha solo en localhost y nunca recibe datos de producción. `docker compose down` lo detiene; añadir `-v` borra también el volumen y con él los datos.
 
+## Ingesta persistente
+
+```sh
+npm run ingest
+```
+
+Consume MOVEMENT y guarda cada registro en `raw_events`. Requiere la base levantada y las credenciales en `.env`. Se detiene con Ctrl+C: deja de confirmar mensajes, espera la escritura en curso y cierra la conexión y el pool.
+
+Confirma cada mensaje al broker **después** de que su transacción haya hecho commit, nunca antes. La clave de deduplicación es el SHA-256 del registro con las claves ordenadas, así que una reentrega tras reconectar no crea filas nuevas. Reconecta con retroceso exponencial hasta 60 segundos y registra los huecos; **lo emitido mientras no había sesión no se puede recuperar**: el broker no lo reenvía.
+
+Esta entrega solo escribe `raw_events`. No proyecta posiciones ni alimenta la interfaz, que sigue en modo demo. **No hay política de retención**: la tabla crece sin límite mientras el proceso corra.
+
 ## Estructura
 
 - `apps/web`: Next.js App Router; componentes shadcn/ui, MapLibre y central de operaciones.
-- `apps/ingestor`: diagnóstico real de CORPUS, SCHEDULE y MOVEMENT. El ingestor persistente sigue pendiente.
+- `apps/ingestor`: diagnóstico real de CORPUS, SCHEDULE y MOVEMENT, y el consumidor persistente de MOVEMENT hacia `raw_events`.
 - `packages/domain`: contratos, identidades por fecha, conversión de hora local de Londres a UTC, fixtures e interpolación geográfica de demostración.
 - `packages/db`: cliente PostgreSQL bajo demanda y esquema Drizzle con índices GiST.
 - `docs`: análisis de fuentes, arquitectura y siguiente entrega.
@@ -70,10 +82,10 @@ Más detalle: [diagnóstico de Network Rail](docs/network-rail-access.md).
 1. Revisar el resultado del diagnóstico de acceso y cobertura.
 2. Ampliar la auditoría a intervalos representativos y explicar los eventos cuya marca de tiempo sigue por delante de la recepción tras corregir el offset.
 3. Resolver identidades, códigos y geometría del corredor piloto.
-4. Implementar ingesta persistente, deduplicación, reconexión, snapshots y SSE.
-5. Provisionar PostgreSQL con PostGIS, revisar y aplicar migraciones.
+4. Proyectar circulaciones y posiciones desde `raw_events`, y publicar snapshots y SSE.
+5. Definir retención y archivado de `raw_events` antes de ingerir de forma continuada.
 
-No hay infraestructura creada, migraciones aplicadas ni despliegue. La interfaz continúa en modo demo. El diagnóstico ya carga las credenciales de `.env`; las credenciales jamás llevan prefijo `NEXT_PUBLIC_`.
+No hay despliegue. La base de desarrollo y las migraciones ya existen en local. La interfaz continúa en modo demo. El diagnóstico ya carga las credenciales de `.env`; las credenciales jamás llevan prefijo `NEXT_PUBLIC_`.
 
 ## Referencias
 

@@ -47,3 +47,11 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Comprobaciones funcionales con reversión: un punto en SRID 4326 se acepta y uno en 3857 se rechaza por restricción; una clave de deduplicación repetida se rechaza; un `observed_at` posterior a `received_at` **se acepta**, como exige la semántica temporal de TRUST.
 - El cliente `createDatabase` de `packages/db` conecta y consulta contra la instancia real.
 - Dieciocho pruebas y revisión de tipos satisfactorias. No se ingirió ningún dato ni se tocó la interfaz: las tablas están vacías.
+
+## Entrega del consumidor persistente
+
+- Veinticinco pruebas y revisión de tipos satisfactorias: nueve de dominio y dieciséis del ingestor, siete de ellas nuevas sobre el mapeo de registros. La suite sigue sin tocar red ni base de datos.
+- Ejecución real de 169 segundos contra MOVEMENT: 70 lotes, 1.640 filas, 1.640 insertadas, cero duplicados y cero registros descartados. Apagado limpio con SIGINT.
+- Deduplicación verificada de extremo a extremo: se releyeron 200 payloads ya almacenados y se reinsertaron por la misma ruta. Los 200 hashes coincidieron pese al reordenamiento de claves de `jsonb` y no se creó ninguna fila nueva.
+- Coherencia de lo almacenado con la investigación previa: los 1.586 `observed_at` están alineados al minuto exacto, 494 de ellos (31,1 %) son posteriores a `received_at`, y el desfase va de −279 a +4.748 segundos con mediana de +25. Los 54 registros sin `observed_at` son activaciones y cancelaciones, que no traen `actual_timestamp`.
+- Fuera de alcance y sin hacer: proyecciones, SSE, interfaz y política de retención. La tabla `raw_events` crece sin límite mientras el consumidor esté en marcha.

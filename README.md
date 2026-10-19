@@ -52,6 +52,19 @@ Cubre **el 76,7 % de los eventos observados**: NaPTAN solo tiene estaciones, y l
 
 Contiene datos de NaPTAN del Department for Transport, bajo [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/).
 
+## Proyección
+
+```sh
+npm run project
+npm run project -- --reset
+```
+
+Lee `raw_events` con un cursor y mantiene `service_runs` y `train_positions`. Va **aparte de la ingesta a propósito**: un error de proyección no detiene la captura, y `--reset` permite rehacerla desde cero tras corregir la lógica.
+
+Una posición solo es `reported` cuando su STANOX resuelve a un punto único en `locations`. Si no resuelve, o si resuelve a puntos distintos, queda `unknown` **sin coordenada inventada**.
+
+Dos limitaciones declaradas: la fecha de servicio se deriva de la fecha londinense del evento, así que un tren que cruce medianoche producirá dos circulaciones; y el headcode queda nulo porque la descomposición de `train_id` no está verificada.
+
 ## Ingesta persistente
 
 ```sh

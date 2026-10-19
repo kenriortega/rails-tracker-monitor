@@ -65,3 +65,16 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Idempotencia demostrada: una segunda carga deja el mismo total de 2.662 filas.
 - Coherencia con la auditoría: la consulta de cobertura sobre lo almacenado devuelve 784 de 1.074 ubicaciones (73,0 %) y 1.217 de 1.586 eventos (76,7 %), las mismas cifras medidas antes de implementar. Los nueve STANOX ambiguos afectan a 36 eventos.
 - Fuera de alcance y sin hacer: proyección a `train_positions`, interfaz, BPLAN y el 23,3 % de eventos sin posición. La web sigue en modo demo.
+
+## Entrega de proyección
+
+- Treinta y siete pruebas y revisión de tipos satisfactorias. Ocho nuevas cubren el signo del retraso según `variation_status`, el rechazo de variaciones no interpretables, el relleno de códigos de ubicación, la derivación de la fecha de servicio y el arrastre de terminación y renumeración.
+- Un fallo real salió en las pruebas antes de ejecutar nada: `Number("")` es cero, así que una variación ausente se proyectaba como retraso de cero minutos en lugar de nulo.
+- Migración `0003` aplicada: tabla `projection_state` con el cursor. Cuatro migraciones registradas.
+- Proyección de los 1.640 eventos almacenados en 6,8 segundos: 1.586 movimientos proyectados y 54 omitidos, que son exactamente las activaciones y cancelaciones.
+- Resultado: 965 circulaciones, 900 en curso y 65 terminadas; 965 posiciones, 721 `reported` y 244 `unknown`.
+- Conciliación con la auditoría geográfica: 1.181 eventos resolvieron a un punto único, que son los 1.217 resolubles menos los 36 afectados por STANOX ambiguos. La proyección los deja `unknown` a propósito.
+- Invariantes verificados en la base: todos los puntos en SRID 4326, ninguna posición `unknown` con coordenada y ninguna `reported` sin ella.
+- Reproyección completa con `--reset`: cifras idénticas.
+- Sin validar: el retraso mínimo es de −3.780 segundos, un tren 63 minutos adelantado. Puede ser legítimo en mercancías; no se ha comprobado.
+- Fuera de alcance: snapshot, SSE, interfaz y la calidad `stale`, que exige fijar un umbral de frescura con medidas. La web sigue en modo demo.

@@ -77,7 +77,7 @@ Definido en `packages/domain/src/index.ts`: coordenada nullable WGS84 `[longitud
 - `stale`: última posición conocida fuera del umbral de frescura.
 - `unknown`: sin ubicación fiable; no inventar una coordenada.
 
-La UI actual emplea únicamente fixtures `demo`. Los umbrales de frescura reales se decidirán con medidas del feed; no se han fijado arbitrariamente.
+La proyección produce `reported` cuando el STANOX resuelve a un punto único y `unknown` en cualquier otro caso, incluidos los STANOX que apuntan a puntos distintos. `estimated` y `stale` no se emiten todavía: la primera exige una regla de inferencia y la segunda un umbral de frescura, y ninguno se fijará sin medidas del feed. La UI actual emplea únicamente fixtures `demo`.
 
 ## Reglas de la próxima ingesta
 

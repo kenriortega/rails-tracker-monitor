@@ -36,3 +36,11 @@ export const trainPositions = pgTable("train_positions", {
   observedAt: timestamp("observed_at", {withTimezone: true}).notNull(),
   receivedAt: timestamp("received_at", {withTimezone: true}).notNull(),
 }, table => [index("train_position_gist").using("gist", table.point), check("train_position_wgs84", sql`${table.point} IS NULL OR ST_SRID(${table.point}) = 4326`)]);
+
+/** Cursor de proyección: permite reprocesar raw_events tras corregir la lógica. */
+export const projectionState = pgTable("projection_state", {
+  name: text("name").primaryKey(),
+  lastReceivedAt: timestamp("last_received_at", {withTimezone: true}).notNull(),
+  lastEventId: uuid("last_event_id").notNull(),
+  updatedAt: timestamp("updated_at", {withTimezone: true}).defaultNow().notNull(),
+});

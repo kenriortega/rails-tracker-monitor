@@ -60,4 +60,4 @@ export function delayLabel(delay: number): string { return delay > 0 ? `+${delay
 export function trainColor(train: DemoTrain): string { return train.stale ? "#8b99ad" : train.delay >= 10 ? "#ff8073" : train.delay > 0 ? "#f4c76a" : "#91edb4"; }
 
 export { routes, trains } from "./fixtures";
-export { londonOffsetMs, resolveLondonLocalEpoch, type LondonResolution, type ResolvedInstant } from "./time";
+export { londonOffsetMs, londonServiceDate, resolveLondonLocalEpoch, type LondonResolution, type ResolvedInstant } from "./time";

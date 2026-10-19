@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { londonOffsetMs, resolveLondonLocalEpoch } from "./time";
+import { londonOffsetMs, londonServiceDate, resolveLondonLocalEpoch } from "./time";
 
 test("a summer local time is resolved by subtracting the BST offset", () => {
   const resolved = resolveLondonLocalEpoch(Date.UTC(2026, 6, 1, 12, 0, 0));
@@ -40,4 +40,11 @@ test("the offset follows the transition rather than a fixed one hour shift", () 
   assert.equal(londonOffsetMs(Date.UTC(2026, 9, 26, 12, 0, 0)), 0);
   // Sub-second input must not shift the offset itself.
   assert.equal(londonOffsetMs(Date.UTC(2026, 6, 1, 12, 0, 0) + 742), 3600000);
+});
+
+test("the service date follows London local time, not UTC", () => {
+  // 23:30 UTC on 1 July is already the next day in BST.
+  assert.equal(londonServiceDate(Date.UTC(2026, 6, 1, 23, 30)), "2026-07-02");
+  assert.equal(londonServiceDate(Date.UTC(2026, 0, 15, 23, 30)), "2026-01-15");
+  assert.equal(londonServiceDate(new Date(Date.UTC(2026, 9, 19, 12))), "2026-10-19");
 });

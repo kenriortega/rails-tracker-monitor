@@ -46,3 +46,18 @@ export function resolveLondonLocalEpoch(localEpoch: number): ResolvedInstant {
   const chosen = candidates[0];
   return {utc: chosen.instant, offsetSeconds: chosen.offset / 1000, resolution: candidates.length === 1 ? "unique" : "ambiguous"};
 }
+
+const LONDON_DATE = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit"
+});
+
+/**
+ * Fecha operativa en Europe/London, en formato ISO.
+ *
+ * Es una aproximación: los reportes de movimiento no traen fecha de servicio, y
+ * un tren que cruza medianoche produce dos fechas distintas para una misma
+ * circulación. Ver «Semántica temporal de TRUST» en docs/data-contracts.md.
+ */
+export function londonServiceDate(instant: number | Date): string {
+  return LONDON_DATE.format(instant);
+}

@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "lib": ["ES2022", "DOM"],
+    "module": "ESNext", "moduleResolution": "Bundler", "strict": true,
+    "esModuleInterop": true, "skipLibCheck": true, "noEmit": true,
+    "resolveJsonModule": true
+  },
+  "include": ["packages/**/*.ts", "apps/ingestor/**/*.ts"]
+}

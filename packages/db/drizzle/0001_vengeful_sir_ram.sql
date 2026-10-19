@@ -1,0 +1,2 @@
+ALTER TABLE "locations" ADD CONSTRAINT "location_point_wgs84" CHECK ("locations"."point" IS NULL OR ST_SRID("locations"."point") = 4326);--> statement-breakpoint
+ALTER TABLE "train_positions" ADD CONSTRAINT "train_position_wgs84" CHECK ("train_positions"."point" IS NULL OR ST_SRID("train_positions"."point") = 4326);

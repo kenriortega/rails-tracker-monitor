@@ -39,6 +39,19 @@ Levanta PostgreSQL 16 con PostGIS 3.5 en `127.0.0.1:5434` y aplica las migracion
 
 Las credenciales del contenedor son triviales a propósito: escucha solo en localhost y nunca recibe datos de producción. `docker compose down` lo detiene; añadir `-v` borra también el volumen y con él los datos.
 
+## Carga de ubicaciones
+
+```sh
+curl -o naptan.xml "https://naptan.api.dft.gov.uk/v1/access-nodes?dataFormat=xml"
+npm run import:naptan -- --file=naptan.xml
+```
+
+Carga las estaciones de NaPTAN en `locations` con sus coordenadas WGS84. El fichero ronda los 580 MB porque el TIPLOC solo aparece en el XML; el CSV de NaPTAN no lo incluye. La carga es idempotente: repetirla actualiza las filas existentes en lugar de duplicarlas. Si hay credenciales de Network Rail, además rellena el STANOX desde CORPUS.
+
+Cubre **el 76,7 % de los eventos observados**: NaPTAN solo tiene estaciones, y los cruces, bucles y señales quedan sin posición. Nueve STANOX se corresponden con puntos distintos entre sí; esa ambigüedad se conserva en los datos en lugar de resolverse en la carga. Ver la [auditoría de fuentes geográficas](docs/geographic-sources.md).
+
+Contiene datos de NaPTAN del Department for Transport, bajo [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/).
+
 ## Ingesta persistente
 
 ```sh

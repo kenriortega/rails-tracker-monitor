@@ -15,6 +15,13 @@
       "when": 1792441089740,
       "tag": "0001_vengeful_sir_ram",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792447650282,
+      "tag": "0002_ambitious_zarek",
+      "breakpoints": true
     }
   ]
 }

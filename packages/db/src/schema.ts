@@ -5,7 +5,7 @@ export const locations = pgTable("locations", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(), tiploc: text("tiploc"), stanox: text("stanox"), crs: text("crs"),
   point: geometry("point", {type: "point", mode: "tuple", srid: 4326}),
-}, table => [index("location_point_gist").using("gist", table.point), check("location_point_wgs84", sql`${table.point} IS NULL OR ST_SRID(${table.point}) = 4326`)]);
+}, table => [index("location_point_gist").using("gist", table.point), uniqueIndex("location_tiploc").on(table.tiploc), check("location_point_wgs84", sql`${table.point} IS NULL OR ST_SRID(${table.point}) = 4326`)]);
 const lineString = customType<{ data: string }>({ dataType: () => "geometry(LineString,4326)" });
 export const trackSegments = pgTable("track_segments", {
   id: uuid("id").defaultRandom().primaryKey(), source: text("source").notNull(),

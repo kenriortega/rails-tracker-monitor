@@ -55,6 +55,10 @@ Nueve de las ubicaciones observadas se corresponden con varios TIPLOC cuyas coor
 | Vail Data | TIPLOC | OGL v3 | Solo consulta individual | Sin descarga masiva: no sirve |
 | RailMaps | TIPLOC lat/long | No declarada | Descarga | Centros promediados, no posiciones oficiales |
 
+## Estado de la carga
+
+NaPTAN ya está cargado en `locations` mediante `npm run import:naptan`. La medición contra los datos almacenados reproduce exactamente las cifras de esta auditoría: 784 de 1.074 ubicaciones y 1.217 de 1.586 eventos. Los nueve STANOX ambiguos afectan a 36 eventos y se conservan sin resolver.
+
 ## Recomendación
 
 **NaPTAN como primaria y BPLAN Geography como segunda fuente necesaria**, no opcional. Con NaPTAN sola, uno de cada cuatro eventos queda sin posición, y los que faltan son precisamente los cruces. Ambas están bajo OGL v3, compatible con un proyecto permisivo.

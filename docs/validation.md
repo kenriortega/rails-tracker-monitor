@@ -55,3 +55,13 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Deduplicación verificada de extremo a extremo: se releyeron 200 payloads ya almacenados y se reinsertaron por la misma ruta. Los 200 hashes coincidieron pese al reordenamiento de claves de `jsonb` y no se creó ninguna fila nueva.
 - Coherencia de lo almacenado con la investigación previa: los 1.586 `observed_at` están alineados al minuto exacto, 494 de ellos (31,1 %) son posteriores a `received_at`, y el desfase va de −279 a +4.748 segundos con mediana de +25. Los 54 registros sin `observed_at` son activaciones y cancelaciones, que no traen `actual_timestamp`.
 - Fuera de alcance y sin hacer: proyecciones, SSE, interfaz y política de retención. La tabla `raw_events` crece sin límite mientras el consumidor esté en marcha.
+
+## Entrega de carga de NaPTAN
+
+- Veintinueve pruebas y revisión de tipos satisfactorias. Cuatro nuevas cubren el parser con un XML de muestra: se emite solo la parada ferroviaria con TIPLOC y coordenadas, se descartan la parada de autobús, la que no tiene TIPLOC y la que tiene códigos válidos con geometría nula, y un XML mal formado se rechaza en vez de devolver un resultado parcial.
+- Migración `0002` generada y aplicada: índice único sobre `locations.tiploc`, necesario para que la carga sea idempotente. Tres migraciones registradas.
+- Carga real en 7,8 segundos desde un XML de 552 MB: 436.793 paradas recorridas, 2.716 ferroviarias, 43 sin TIPLOC, 11 sin coordenadas y 2.662 estaciones escritas. 2.649 obtuvieron STANOX desde CORPUS.
+- Verificado en la base: las 2.662 filas tienen SRID 4326 y ninguna cae fuera del rango geográfico de Gran Bretaña.
+- Idempotencia demostrada: una segunda carga deja el mismo total de 2.662 filas.
+- Coherencia con la auditoría: la consulta de cobertura sobre lo almacenado devuelve 784 de 1.074 ubicaciones (73,0 %) y 1.217 de 1.586 eventos (76,7 %), las mismas cifras medidas antes de implementar. Los nueve STANOX ambiguos afectan a 36 eventos.
+- Fuera de alcance y sin hacer: proyección a `train_positions`, interfaz, BPLAN y el 23,3 % de eventos sin posición. La web sigue en modo demo.

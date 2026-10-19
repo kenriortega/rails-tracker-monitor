@@ -38,3 +38,12 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Resultado secundario: entre 41 y 44 eventos por muestra quedan hasta unos cuatro minutos y medio por delante, todos `ARRIVAL`, todos automáticos, sin agrupación por ubicación ni operador. **Causa no establecida**; la hipótesis de previsión no se pudo comprobar sin circularidad.
 - Descartado como causa: el reloj local, verificado a 2 ms contra NTP.
 - Sin cambios de código. La investigación solo produjo documentación.
+
+## Entrega de base de datos local
+
+- `docker compose up -d` levanta PostgreSQL 16 con PostGIS 3.5 y pasa el healthcheck en siete segundos. Puerto 5434 del host: 5432 y 5433 ya estaban ocupados por otros proyectos, y `DATABASE_URL` apuntaba al 5432, es decir a la base de un proyecto ajeno. Se corrigió en `.env` y `.env.example`.
+- La imagen `postgis/postgis:16-3.5` solo publica amd64 y corre emulada en Apple Silicon. Se eligió la versión 16 porque ya estaba descargada en la máquina; el esquema no usa nada exclusivo de la 17.
+- `npm run db:migrate` aplicó las dos migraciones. Verificado contra la base: PostGIS 3.5.2, las seis tablas, los tres índices GiST, las dos restricciones de SRID, los tres índices únicos y dos filas en `drizzle.__drizzle_migrations`.
+- Comprobaciones funcionales con reversión: un punto en SRID 4326 se acepta y uno en 3857 se rechaza por restricción; una clave de deduplicación repetida se rechaza; un `observed_at` posterior a `received_at` **se acepta**, como exige la semántica temporal de TRUST.
+- El cliente `createDatabase` de `packages/db` conecta y consulta contra la instancia real.
+- Dieciocho pruebas y revisión de tipos satisfactorias. No se ingirió ningún dato ni se tocó la interfaz: las tablas están vacías.

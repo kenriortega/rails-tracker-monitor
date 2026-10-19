@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit && npm run typecheck -w @rails/web",
     "test": "node --import tsx --test packages/domain/src/*.test.ts && npm test -w @rails/ingestor",
     "diagnose:network-rail": "npm run diagnose -w @rails/ingestor --",
-    "db:generate": "npm run generate -w @rails/db"
+    "db:generate": "npm run generate -w @rails/db",
+    "db:migrate": "npm run migrate -w @rails/db"
   },
   "devDependencies": { "@types/node": "^22.0.0", "tsx": "^4.20.0", "typescript": "^5.9.0" },
   "engines": { "node": ">=22.0.0" }

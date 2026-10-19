@@ -26,6 +26,19 @@ npm run build
 npm run db:generate
 ```
 
+## Base de datos local
+
+La demo no la necesita. Hace falta para la ingesta persistente que viene.
+
+```sh
+docker compose up -d
+npm run db:migrate
+```
+
+Levanta PostgreSQL 16 con PostGIS 3.5 en `127.0.0.1:5434` y aplica las migraciones de `packages/db/drizzle`. El puerto no es el 5432 habitual porque en la máquina de desarrollo ya lo ocupaban otros proyectos; `DATABASE_URL` en `.env` debe coincidir con el del `compose.yaml`. La imagen solo publica amd64, así que en Apple Silicon corre emulada.
+
+Las credenciales del contenedor son triviales a propósito: escucha solo en localhost y nunca recibe datos de producción. `docker compose down` lo detiene; añadir `-v` borra también el volumen y con él los datos.
+
 ## Estructura
 
 - `apps/web`: Next.js App Router; componentes shadcn/ui, MapLibre y central de operaciones.

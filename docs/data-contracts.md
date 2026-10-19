@@ -58,7 +58,7 @@ Se descartó un desfase del reloj local: la máquina de medición estaba a 2 ms 
 | TD | Descripciones de trenes entre berths por área | CA mueve, CB elimina, CC intercala, CT indica heartbeat; un cambio de descripción no equivale siempre a movimiento físico |
 | SCHEDULE | Planificación base y actualizaciones | Resolver versiones, fechas, días de operación y precedencia STP |
 | VSTP | Servicios/cambios de muy corto plazo | Correlacionar con planificación y activaciones |
-| CORPUS | Correspondencias STANOX, TIPLOC, CRS, NLC | No asumir coordenadas ni correspondencias completas o unívocas |
+| CORPUS | Correspondencias STANOX, TIPLOC, CRS (`3ALPHA`), NLC | **No contiene coordenadas.** Un STANOX puede tener varios TIPLOC, y nueve de los observados apuntan a puntos distintos |
 | SMART | Interpretación de parte del stepping TD | No garantiza la geolocalización exacta de cada berth |
 | TPS / geografía | Candidatos para infraestructura | Auditar acceso, formato, licencia y cobertura antes de seleccionar |
 | TSR | Restricciones temporales | Evaluar resolución espacial y vigencia; no tratar como evento continuo |
@@ -89,6 +89,6 @@ Interpretar fechas de servicio en Europe/London y almacenar instantes en UTC med
 
 ## Auditoría adicional pendiente
 
-La autenticación y recepción inicial de MOVEMENT, acceso a CORPUS y muestra de SCHEDULE ya se comprobaron. Falta verificar TD/SMART/VSTP, reconexiones e intervalos más representativos. Auditar un corredor y medir nulos, duplicados, cambios de identidad, cancelaciones y ubicaciones sin resolver. Resolver y validar las coordenadas antes de prometer precisión espacial; normalizar los campos temporales antes de publicar latencia.
+La autenticación y recepción inicial de MOVEMENT, acceso a CORPUS y muestra de SCHEDULE ya se comprobaron. Falta verificar TD/SMART/VSTP, reconexiones e intervalos más representativos. Auditar un corredor y medir nulos, duplicados, cambios de identidad, cancelaciones y ubicaciones sin resolver. Resolver y validar las coordenadas antes de prometer precisión espacial. La normalización temporal ya está hecha; ver «Semántica temporal de TRUST». Las fuentes geográficas candidatas y su cobertura medida están en [auditoría de fuentes geográficas](geographic-sources.md): NaPTAN resuelve el 76,7 % de los eventos observados y hace falta una segunda fuente para los cruces.
 
 Fuentes documentales: [TRUST](https://wiki.openraildata.com/index.php/Train_Movements), [TD](https://wiki.openraildata.com/index.php/C_Class_Messages), [referencias](https://wiki.openraildata.com/index.php/Reference_data), [conexión](https://wiki.openraildata.com/index.php/Connecting_with_Stomp). Los accesos directos a algunas páginas devolvieron 403; se consultaron sus extractos indexados. Confirmar detalles con los mensajes reales.

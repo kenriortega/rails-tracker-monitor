@@ -57,7 +57,7 @@ Esta entrega solo escribe `raw_events`. No proyecta posiciones ni alimenta la in
 - `apps/ingestor`: diagnóstico real de CORPUS, SCHEDULE y MOVEMENT, y el consumidor persistente de MOVEMENT hacia `raw_events`.
 - `packages/domain`: contratos, identidades por fecha, conversión de hora local de Londres a UTC, fixtures e interpolación geográfica de demostración.
 - `packages/db`: cliente PostgreSQL bajo demanda y esquema Drizzle con índices GiST.
-- `docs`: análisis de fuentes, arquitectura y siguiente entrega.
+- `docs`: análisis de fuentes, auditoría geográfica, arquitectura y siguiente entrega.
 - `fixtures`: reglas para capturas reales futuras. Los fixtures sintéticos actuales viven en `packages/domain/src/fixtures.ts` para compartirlos con la interfaz.
 
 ## Diagnóstico de acceso real
@@ -81,7 +81,7 @@ Más detalle: [diagnóstico de Network Rail](docs/network-rail-access.md).
 
 1. Revisar el resultado del diagnóstico de acceso y cobertura.
 2. Ampliar la auditoría a intervalos representativos y explicar los eventos cuya marca de tiempo sigue por delante de la recepción tras corregir el offset.
-3. Resolver identidades, códigos y geometría del corredor piloto.
+3. Resolver identidades, códigos y geometría del corredor piloto; ver la [auditoría de fuentes geográficas](docs/geographic-sources.md).
 4. Proyectar circulaciones y posiciones desde `raw_events`, y publicar snapshots y SSE.
 5. Definir retención y archivado de `raw_events` antes de ingerir de forma continuada.
 

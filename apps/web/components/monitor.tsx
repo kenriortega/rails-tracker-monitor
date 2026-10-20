@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Check, Clock3, Crosshair, Database, Focus, Layers3, MapPin, Minus, Plus, Radio, RotateCcw, Search, Settings2, TrainFront, X } from "lucide-react";
 import { freshness, type LiveRun, type Trail } from "@rails/domain";
 import { useLiveRuns, type ConnectionState } from "@/lib/use-live-runs";
@@ -41,6 +41,10 @@ export function Monitor() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [operator, setOperator] = useState("all");
+  const selectedRowRef = useRef<HTMLLIElement>(null);
+  // Solo al cambiar de selección: hacerlo en cada actualización sería un salto
+  // constante bajo el cursor.
+  useEffect(() => { selectedRowRef.current?.scrollIntoView({block: "nearest"}); }, [selectedId]);
   const setSelectedId = setSelectedIdState;
   const [follow, setFollow] = useState(false);
   const [showStations, setShowStations] = useState(true);
@@ -60,11 +64,22 @@ export function Monitor() {
       if (filter === "delayed") return (run.delaySeconds ?? 0) > 0;
       if (filter === "early") return (run.delaySeconds ?? 0) < 0;
       return true;
-    }).sort((a, b) => b.observedAt.localeCompare(a.observedAt));
+      // Orden estable por identidad, no por hora del último reporte: ordenar por
+      // hora rebarajaba la lista entera cada pocos segundos y el tren que
+      // estabas mirando se escapaba de la vista.
+    }).sort((a, b) => (a.headcode ?? a.providerRunId).localeCompare(b.headcode ?? b.providerRunId)
+                   || a.providerRunId.localeCompare(b.providerRunId));
   }, [runs, query, filter, operator]);
 
   const positioned = useMemo(() => matching.filter(run => run.coordinate), [matching]);
   const unpositioned = useMemo(() => matching.filter(run => !run.coordinate), [matching]);
+
+  /** Recorta la lista, pero nunca deja fuera la circulación seleccionada. */
+  const visible = (list: LiveRun[]) => {
+    const shown = list.slice(0, LIST_LIMIT);
+    const selectedRun = list.find(run => run.runId === selectedId);
+    return selectedRun && !shown.includes(selectedRun) ? [selectedRun, ...shown] : shown;
+  };
   const selected = matching.find(run => run.runId === selectedId) ?? null;
   const delayed = runs.filter(run => (run.delaySeconds ?? 0) > 0).length;
   const onTime = runs.filter(run => run.delaySeconds === 0).length;
@@ -74,7 +89,7 @@ export function Monitor() {
   const zoom = (type: "in" | "out" | "reset") => {setFollow(false); setZoomAction({type, key: Date.now()});};
 
   const row = (run: LiveRun) => (
-    <li key={run.runId}>
+    <li key={run.runId} ref={run.runId === selectedId ? selectedRowRef : undefined}>
       <button type="button" className={`train-row ${run.runId === selectedId ? "selected" : ""} ${freshness(run.observedAt, now) === "stale" ? "stale" : ""}`} onClick={() => setSelectedId(run.runId)} aria-pressed={run.runId === selectedId}>
         <div className="train-row-top">
           <span className="service-code mono">{run.headcode ?? run.providerRunId}</span>
@@ -137,10 +152,10 @@ export function Monitor() {
               </select>
             </label>
             <ul className="fleet-list">
-              {positioned.slice(0, LIST_LIMIT).map(row)}
+              {visible(positioned).map(row)}
               {positioned.length > LIST_LIMIT && <li className="group-note">y {positioned.length - LIST_LIMIT} más en el mapa</li>}
               {Boolean(unpositioned.length) && <li className="group-heading">Sin posición <span className="count-tag">{unpositioned.length}</span><small>no aparecen en el mapa</small></li>}
-              {unpositioned.slice(0, LIST_LIMIT).map(row)}
+              {visible(unpositioned).map(row)}
               {unpositioned.length > LIST_LIMIT && <li className="group-note">y {unpositioned.length - LIST_LIMIT} más sin posición</li>}
               {!matching.length && <li className="empty-state"><span>{runs.length ? "Ninguna circulación coincide con el filtro." : "Esperando datos del feed."}</span></li>}
             </ul>

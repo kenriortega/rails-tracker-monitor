@@ -139,3 +139,10 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - **La cobertura geográfica se ve con crudeza aquí.** Un recorrido de 13 reportes dio solo 2 puntos dibujables en una prueba: el resto eran cruces sin coordenada. La línea los salta, y la interfaz lo declara.
 - Un fallo propio lo atrapó el compilador antes de ejecutar nada: en los puntos del rastro se pasaba el array completo de coordenadas en lugar de cada coordenada.
 - Corregida una ineficiencia introducida en esta misma entrega: el recorrido se recargaba con cada delta del feed; ahora solo cuando la circulación seleccionada cambia de versión.
+
+## Corrección del orden de la lista
+
+- Problema observado al usar el sitio: la lista se ordenaba por hora del último reporte, así que cada delta rebarajaba las filas y la circulación que estabas mirando se escapaba de la vista. La selección se conservaba, pero se perdía el sitio.
+- Ahora el orden es estable por headcode, con desempate por identificador porque **los headcodes se repiten**: en la propia prueba aparecieron dos `1D48`.
+- La circulación seleccionada se incluye siempre en la lista renderizada aunque caiga más allá del tope de 120, y al seleccionarla se lleva a la vista; eso último solo al cambiar de selección, no en cada actualización.
+- Verificado en el navegador con datos entrando durante setenta segundos: el total subió de 379 a 389, el orden se mantuvo y la circulación seleccionada siguió en su posición. La única fila que desapareció fue una que salió de la ventana de dos horas, que es el comportamiento correcto.

@@ -95,11 +95,30 @@ Definido en `packages/domain/src/wire.ts` y compartido por servidor y navegador 
 
 ## Identidad y horario
 
-El `train_id` de TRUST lleva el **headcode en las posiciones 3 a 6**. Verificado sobre 63 activaciones reales: en las 63, esos cuatro caracteres coinciden con los cuatro primeros de `schedule_wtt_id`. Ambos campos los emite TRUST, así que concuerdan dos valores del mismo origen y no dos sistemas independientes; un contraste contra `signalling_id` de SCHEDULE sería la confirmación definitiva. Cuando los caracteres no cumplen `[0-9][A-Z][0-9]{2}` el headcode queda nulo.
+El `train_id` de TRUST lleva el **headcode en las posiciones 3 a 6**. **Confirmado contra SCHEDULE**, que es un sistema distinto de TRUST: cruzando las activaciones con los horarios importados, esos cuatro caracteres coinciden con `signalling_id` en **117 de 118** casos. Antes la evidencia eran 63 coincidencias con `schedule_wtt_id`, pero ambos campos los emite TRUST y concordaban dos valores del mismo origen; ese contraste independiente ya está hecho. Queda una discrepancia sin explicar. Cuando los caracteres no cumplen `[0-9][A-Z][0-9]{2}` el headcode queda nulo.
 
 El horario se enlaza por `train_uid` y fecha de inicio, **sin** el indicador STP. **`schedule_type` de la activación no es ese indicador**: sobre las 63 activaciones decía `O` donde el horario de esa fecha era `P`, y al revés. Por uid y fecha coincidieron 53 de 63 sin una sola ambigüedad. No se interpreta `schedule_type` mientras su significado no esté verificado.
 
 El enlace depende por completo de haber capturado la activación, que es el único mensaje con `train_uid` y se emite horas antes de la circulación. Con los datos actuales alcanza a **2 de 1.229 circulaciones**.
+
+## Operador
+
+Los movimientos traen `toc_id`, un código numérico que no nombra a nadie. El nombre se arma en dos pasos, con orígenes distintos que conviene no confundir.
+
+El primero sale de los datos propios, cruzando activaciones y horarios:
+
+```sql
+select e.payload->'body'->>'toc_id', s.payload->>'atoc_code', count(*)
+from raw_events e
+join schedules s on s.uid = e.payload->'body'->>'train_uid'
+                and s.valid_from = (e.payload->'body'->>'schedule_start_date')::date
+where e.payload->'header'->>'msg_type' = '0001'
+group by 1, 2 order by 1;
+```
+
+Dio 19 códigos ATOC para otros tantos `toc_id`. Dos avisos: un mismo `toc_id` puede dar varias marcas —el 88 aparece como TL y GN— y los operadores de mercancías salen como `ZZ`, que es un comodín y no identifica compañía.
+
+El segundo paso, de código ATOC a nombre comercial, es una **lista curada que no sale de los datos** y que envejece con los cambios de concesión. Un código sin nombre curado se muestra tal cual, y un `toc_id` que no hayamos visto conserva su número: menos informativo, pero nunca incorrecto.
 
 ## Auditoría adicional pendiente
 

@@ -146,3 +146,11 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Ahora el orden es estable por headcode, con desempate por identificador porque **los headcodes se repiten**: en la propia prueba aparecieron dos `1D48`.
 - La circulación seleccionada se incluye siempre en la lista renderizada aunque caiga más allá del tope de 120, y al seleccionarla se lleva a la vista; eso último solo al cambiar de selección, no en cada actualización.
 - Verificado en el navegador con datos entrando durante setenta segundos: el total subió de 379 a 389, el orden se mantuvo y la circulación seleccionada siguió en su posición. La única fila que desapareció fue una que salió de la ventana de dos horas, que es el comportamiento correcto.
+
+## Entrega de nombres de operador
+
+- Cincuenta y seis pruebas, revisión de tipos y `npm run build` satisfactorios. Cuatro nuevas cubren el nombre conocido, el código derivado sin nombre curado, el operador nunca visto y las entradas vacías.
+- El mapeo de `toc_id` a código ATOC **se derivó de los datos propios**, no de memoria: 19 pares obtenidos cruzando activaciones con horarios. La expansión a nombre comercial sí es una lista curada, y así queda marcada en el código y en los contratos.
+- Verificado en el navegador: la lista muestra «Great Western Railway» y el filtro ofrece «TransPennine Express», «Greater Anglia» y «Northern». Los `toc_id` sin derivar siguen mostrando su número, que corresponde sobre todo a mercancías.
+- **Hallazgo adicional de valor:** el mismo cruce confirma el headcode contra `signalling_id` de SCHEDULE en 117 de 118 casos. Eso cierra la duda que quedaba anotada, porque antes la evidencia venía de dos campos del propio TRUST. Queda una discrepancia sin explicar.
+- Un choque de nombres lo atrapó el compilador: la función importada `operator` colisionaba con el estado del filtro.

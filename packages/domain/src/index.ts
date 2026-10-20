@@ -64,3 +64,4 @@ export { londonOffsetMs, londonServiceDate, resolveLondonLocalEpoch, type London
 export type { LiveRun, Snapshot, Delta, Trail, TrailPoint } from "./wire";
 export { FRESH_SECONDS, SERVE_SECONDS, freshness, type Freshness } from "./freshness";
 export { headcodeFromTrainId } from "./identity";
+export { operator, type Operator } from "./operators";

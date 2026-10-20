@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Check, Clock3, Crosshair, Database, Focus, Layers3, MapPin, Minus, Plus, Radio, RotateCcw, Search, Settings2, TrainFront, X } from "lucide-react";
-import { freshness, type LiveRun, type Trail } from "@rails/domain";
+import { freshness, operator as resolveOperator, type LiveRun, type Trail } from "@rails/domain";
 import { useLiveRuns, type ConnectionState } from "@/lib/use-live-runs";
 import { useTrail } from "@/lib/use-trail";
 
@@ -96,7 +96,7 @@ export function Monitor() {
           <span className={`delay-tag ${delayTone(run.delaySeconds)}`}>{delayLabel(run.delaySeconds)}</span>
         </div>
         <div className="train-row-bottom">
-          <span>{freshness(run.observedAt, now) === "stale" ? "Sin señal reciente" : `Operador ${run.tocId ?? "—"}`}</span>
+          <span>{freshness(run.observedAt, now) === "stale" ? "Sin señal reciente" : resolveOperator(run.tocId)?.label ?? "Operador desconocido"}</span>
           <span className="mono">{hhmm.format(new Date(run.observedAt))}</span>
         </div>
       </button>
@@ -148,7 +148,7 @@ export function Monitor() {
             <label className="operator-filter"><Settings2 size={13}/>
               <select aria-label="Filtrar por operador" value={operator} onChange={event => setOperator(event.target.value)}>
                 <option value="all">Todos los operadores</option>
-                {operators.map(toc => <option key={toc} value={toc}>Operador {toc}</option>)}
+                {operators.map(toc => <option key={toc} value={toc}>{resolveOperator(toc)?.label ?? toc}</option>)}
               </select>
             </label>
             <ul className="fleet-list">
@@ -219,7 +219,7 @@ function Inspector({run, now, trail, follow, onFollow, onClose}: {run: LiveRun; 
       </div>
       <div className="train-detail-title">
         <span className="detail-train-icon"><TrainFront size={19}/></span>
-        <div><h2>{run.headcode ?? "—"}</h2><p className="mono">{run.providerRunId}</p><p>Operador {run.tocId ?? "—"} · {run.serviceDate}</p></div>
+        <div><h2>{run.headcode ?? "—"}</h2><p className="mono">{run.providerRunId}</p><p>{resolveOperator(run.tocId)?.label ?? "Operador desconocido"} · {run.serviceDate}</p></div>
       </div>
       <div className="detail-status">
         <span className={`delay-tag ${delayTone(run.delaySeconds)}`}>{delayLabel(run.delaySeconds)}</span>

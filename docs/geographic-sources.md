@@ -43,12 +43,48 @@ A favor: el XML da longitud y latitud en WGS84 ya calculadas, así que no hace f
 
 Nueve de las ubicaciones observadas se corresponden con varios TIPLOC cuyas coordenadas **difieren entre sí**. Hace falta una regla explícita de resolución, y para los casos que no se puedan decidir, dejar la posición como `unknown` en lugar de escoger en silencio la primera coincidencia. El contrato de posición ya contempla esa calidad.
 
+## TPS: accesible ya, pero sin coordenadas
+
+Medido el 20 de octubre de 2026. Antes de evaluar accesos nuevos conviene saber qué alcanzan las credenciales actuales. Probando los tipos documentados del portal:
+
+| Tipo | Respuesta |
+|---|---|
+| CORPUS | 200, 788 KB |
+| SMART | 200, 365 KB |
+| **TPS** | **200, 24 MB** |
+| BPLAN, GEOGRAPHY, NWK, REFERENCE | 404 |
+
+TPS se descarga **sin registro adicional**. Llega en bzip2, no en gzip, y descomprime a unos 617 MB de XML con el modelo de red del Train Planning System. Contiene 18.101 elementos `<station>` con `abbrev` (TIPLOC), `stanox`, `crscode` y atributos `easting` y `northing`: seis veces más ubicaciones que NaPTAN y justo las claves de unión que necesitamos.
+
+**Solo 27 de esas 18.101 estaciones tienen coordenada no nula.** El resto llevan ceros:
+
+```xml
+<station abbrev="ADLESTN" stanox="86011" crscode="ASN" easting="0" northing="0" ...>
+```
+
+TPS posiciona con referencias kilométricas (`<stationposition kmvalue="33615">`), no geográficas: es un modelo de planificación, no un mapa. **No resuelve el 23 % de eventos sin posición**, y eso queda medido en lugar de supuesto.
+
+## BPLAN en Rail Data Marketplace
+
+El catálogo es navegable sin cuenta. Hay dos productos, ambos marcados **OPEN**:
+
+| Producto | Publicador | Actualización |
+|---|---|---|
+| NWR BPLAN Geography v3.0 | Network Rail | Dos veces al año |
+| BPLAN Geography | OpenTrainTimes Ltd. | Extractos semanales |
+
+La ficha declara que los suscriptores acceden gratis durante su suscripción, con licencia abierta descargable. **No es de pago: el obstáculo es el registro.** Para cruces y bucles conviene considerar el extracto semanal antes que el oficial semestral, porque seis meses de desfase pesan en infraestructura que cambia.
+
+**Sin verificar: la mecánica de entrega.** Hay indicios de que los productos de fichero se empujan a almacenamiento en la nube o por SFTP, sin descarga bajo demanda, mientras que la ayuda del propio sitio habla de ficheros descargables. La contradicción no se resuelve desde fuera de una cuenta, y decide si BPLAN se integra con una orden o exige infraestructura de recepción. Tampoco se descargó el PDF de la licencia ni se creó cuenta alguna.
+
 ## Comparación de fuentes
 
 | Fuente | Cubre | Licencia | Acceso | Problema principal |
 |---|---|---|---|---|
 | **NaPTAN** (DfT) | Estaciones GB | OGL v3 | XML directo, sin registro | 579 MB; el CSV no vale; 76,7 % de los eventos |
-| **BPLAN Geography** (Network Rail) | Todas las ubicaciones del plan | OGL v3 | Rail Data Marketplace, con registro | Coordenadas "no garantizadas exactas"; se publica dos veces al año |
+| **BPLAN Geography** (Network Rail) | Todas las ubicaciones del plan | Abierta, gratuita | Rail Data Marketplace, con registro | Coordenadas "no garantizadas exactas"; semestral; entrega sin verificar |
+| **BPLAN Geography** (OpenTrainTimes) | Extracto de lo anterior | Abierta, gratuita | Rail Data Marketplace, con registro | Semanal, lo que compensa el desfase del oficial |
+| TPS (Network Rail) | 18.101 ubicaciones con TIPLOC y STANOX | OGL v3 | **Ya accesible, sin registro** | **Solo 27 traen coordenada**: no sirve para posicionar |
 | Hoja FOI de eastings/northings | TIPLOC | OGL v3 | Enlace en el wiki | Instantánea sin mantenimiento |
 | `raileasyuk/railway-gis-data` | Vías y TIPLOC | CC-BY-SA 4.0 | GitHub | Copyleft; posiciones ajustadas a mano |
 | OpenStreetMap | Estaciones y vías | ODbL | Overpass | Copyleft; `ref:tiploc` incompleto |
@@ -68,7 +104,7 @@ NaPTAN ya está cargado en `locations` mediante `npm run import:naptan`. La medi
 ## Qué no se verificó
 
 - El wiki de Open Rail Data tiene verificación anti-bots y devolvió 403 por obtención directa y por navegador. **No se intentó sortearla.** Lo que aquí se dice de la estructura de BPLAN y de la hoja FOI procede de resultados de búsqueda, no de la fuente original.
-- No se comprobó el acceso real a Rail Data Marketplace ni sus condiciones de registro.
+- No se creó cuenta en Rail Data Marketplace, así que la mecánica de entrega de sus productos de fichero sigue sin comprobarse.
 - La medición de cobertura usa una muestra de unos tres minutos de feed. Una muestra de un día entero, con horas valle y servicios nocturnos, podría mover las proporciones.
 
 ## Referencias

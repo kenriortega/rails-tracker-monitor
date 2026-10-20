@@ -121,3 +121,11 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Fallo encontrado durante la verificación: el primer enlace unía por indicador STP y daba cero coincidencias. La causa es que `schedule_type` de la activación **no es** ese indicador. Uniendo por uid y fecha coinciden 53 de 63 activaciones sin ambigüedad.
 - **Tasa de enlace real: 2 de 1.229 circulaciones, el 0,16 %.** Es la consecuencia esperada de que las activaciones se emitan horas antes y las capturas sean cortas. Origen y destino solo aparecen en esas dos; el resto muestra «sin enlace».
 - Verificado por la API: 252 circulaciones servidas, las 252 con headcode, 2 con recorrido. Una de ellas muestra el destino como código TIPLOC crudo porque esa ubicación no está en NaPTAN, que es el repliegue previsto.
+
+## Modo continuo
+
+- `npm run project -- --loop=60` mantiene la proyección al ritmo de la ingesta. Sin el indicador el comportamiento no cambia: procesa lo pendiente y termina, que es lo que necesitan las verificaciones. Ambos procesos atienden `SIGINT` y `SIGTERM`.
+- Consumidor y proyección arrancados juntos y mantenidos durante tres ciclos completos antes de detenerlos con `SIGTERM`. Las circulaciones pasaron de 1.229 a 1.281.
+- Primera evidencia de que el enlace con el horario mejora con captura continua: en esos minutos pasó de 2 a 3 circulaciones enlazadas. Es una señal, no una medida; hace falta un día completo para cuantificarla.
+- **La poda no se ejecuta sola.** Con ingesta permanente, `npm run prune` debe lanzarse periódicamente o la base crecerá del orden de 370 MB diarios. Programarlo sigue siendo una decisión de operación.
+- Pendiente de medir con un día completo: la tasa real de enlace con el horario, hoy del 0,16 %, y el umbral de frescura, cuyos quince minutos salen de una distribución contaminada por capturas intermitentes.

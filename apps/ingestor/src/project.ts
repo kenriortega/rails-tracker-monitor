@@ -120,15 +120,31 @@ async function main() {
       await db.execute(sql`delete from projection_state where name = ${CURSOR}`);
       console.info(JSON.stringify({step: "reset", cursor: CURSOR}));
     }
-    const totals: Totals = {read: 0, projected: 0, skipped: 0, positions: 0, unresolved: 0};
-    while (await projectPage(db, totals)) { /* siguiente página */ }
-    const schedules = await linkSchedules(db);
-    const state = await db.execute(sql`
-      select (select count(*)::int from service_runs) as runs,
-             (select count(*)::int from train_positions) as positions,
-             (select count(*)::int from train_positions where quality = 'reported') as reported,
-             (select count(*)::int from train_positions where quality = 'unknown') as unknown`);
-    console.info(JSON.stringify({step: "done", ...totals, state: state.rows[0], schedules}));
+    // Con --loop la proyección acompaña a la ingesta continua; sin él procesa
+    // lo pendiente y termina, que es lo que necesitan las verificaciones.
+    const loopArg = process.argv.find(arg => arg.startsWith("--loop"));
+    const everySeconds = loopArg ? Number(loopArg.split("=")[1] ?? 30) : null;
+    if (everySeconds !== null && (!Number.isFinite(everySeconds) || everySeconds < 5)) {
+      console.info(JSON.stringify({status: "invalid-loop", minimumSeconds: 5})); process.exitCode = 1; return;
+    }
+
+    let stopping = false;
+    const stop = () => { stopping = true; };
+    for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, stop);
+
+    do {
+      const totals: Totals = {read: 0, projected: 0, skipped: 0, positions: 0, unresolved: 0};
+      while (await projectPage(db, totals)) { /* siguiente página */ }
+      const schedules = await linkSchedules(db);
+      const state = await db.execute(sql`
+        select (select count(*)::int from service_runs) as runs,
+               (select count(*)::int from train_positions) as positions,
+               (select count(*)::int from train_positions where quality = 'reported') as reported,
+               (select count(*)::int from train_positions where quality = 'unknown') as unknown`);
+      console.info(JSON.stringify({at: new Date().toISOString(), step: "done", ...totals, state: state.rows[0], schedules}));
+      if (everySeconds === null || stopping) break;
+      await new Promise(resolve => setTimeout(resolve, everySeconds * 1000));
+    } while (!stopping);
   } finally {
     await close();
   }

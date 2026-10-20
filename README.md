@@ -56,10 +56,13 @@ Contiene datos de NaPTAN del Department for Transport, bajo [Open Government Lic
 
 ```sh
 npm run project
+npm run project -- --loop=60
 npm run project -- --reset
 ```
 
 Lee `raw_events` con un cursor y mantiene `service_runs` y `train_positions`. Va **aparte de la ingesta a propósito**: un error de proyección no detiene la captura, y `--reset` permite rehacerla desde cero tras corregir la lógica.
+
+Para ingesta continua se lanzan los dos procesos a la vez, el consumidor y la proyección con `--loop`. Ambos paran con Ctrl+C o `SIGTERM`. **La poda no se ejecuta sola**: con el consumidor en marcha de forma permanente, `npm run prune` debe ejecutarse periódicamente o la base crecerá unos 370 MB diarios.
 
 Una posición solo es `reported` cuando su STANOX resuelve a un punto único en `locations`. Si no resuelve, o si resuelve a puntos distintos, queda `unknown` **sin coordenada inventada**.
 

@@ -61,3 +61,4 @@ export function trainColor(train: DemoTrain): string { return train.stale ? "#8b
 
 export { routes, trains } from "./fixtures";
 export { londonOffsetMs, londonServiceDate, resolveLondonLocalEpoch, type LondonResolution, type ResolvedInstant } from "./time";
+export type { LiveRun, Snapshot, Delta } from "./wire";

@@ -77,9 +77,20 @@ Confirma cada mensaje al broker **después** de que su transacción haya hecho c
 
 Esta entrega solo escribe `raw_events`. No proyecta posiciones ni alimenta la interfaz, que sigue en modo demo. **No hay política de retención**: la tabla crece sin límite mientras el proceso corra.
 
+## API en vivo
+
+Con la base levantada y la proyección al día, el servidor de desarrollo expone:
+
+- `GET /api/snapshot`: estado completo, con una `version` que sirve de cursor.
+- `GET /api/stream`: cambios por SSE. Acepta `?since=<version>` y respeta la cabecera `Last-Event-ID`, así que una reconexión entrega solo lo posterior.
+
+Los cambios se empujan con `LISTEN/NOTIFY` de PostgreSQL: un trigger sobre `train_positions` avisa, y cada cliente consulta su propio delta desde su cursor. La notificación no lleva contenido a propósito; así, un aviso perdido durante una reconexión no pierde datos.
+
+**Sin autenticación ni límite de conexiones.** Solo escucha en `127.0.0.1`, como el resto. No exponerlo fuera sin añadir ambas cosas.
+
 ## Estructura
 
-- `apps/web`: Next.js App Router; componentes shadcn/ui, MapLibre y central de operaciones.
+- `apps/web`: Next.js App Router; componentes shadcn/ui, MapLibre, central de operaciones y la API en vivo.
 - `apps/ingestor`: diagnóstico real de CORPUS, SCHEDULE y MOVEMENT, y el consumidor persistente de MOVEMENT hacia `raw_events`.
 - `packages/domain`: contratos, identidades por fecha, conversión de hora local de Londres a UTC, fixtures e interpolación geográfica de demostración.
 - `packages/db`: cliente PostgreSQL bajo demanda y esquema Drizzle con índices GiST.

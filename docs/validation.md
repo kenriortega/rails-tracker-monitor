@@ -78,3 +78,13 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Reproyección completa con `--reset`: cifras idénticas.
 - Sin validar: el retraso mínimo es de −3.780 segundos, un tren 63 minutos adelantado. Puede ser legítimo en mercancías; no se ha comprobado.
 - Fuera de alcance: snapshot, SSE, interfaz y la calidad `stale`, que exige fijar un umbral de frescura con medidas. La web sigue en modo demo.
+
+## Entrega de snapshot y SSE
+
+- Treinta y siete pruebas, revisión de tipos y `npm run build` satisfactorios. Ambas rutas de API quedan dinámicas en el informe de compilación: sin cacheo accidental.
+- Migración `0004` aplicada: columna `version` con secuencia, índice, trigger que la avanza en las actualizaciones y trigger de `pg_notify`. Cinco migraciones registradas. La parte de secuencia y triggers se escribió a mano porque Drizzle no la genera.
+- `GET /api/snapshot` devuelve las 965 circulaciones con versión 965, 721 `reported` y 244 `unknown`, con las versiones estrictamente ordenadas. Coincide con la proyección.
+- Reanudación determinista: pedir desde la versión 960 entrega solo lo posterior; pedir desde la última no entrega nada.
+- Entrega en vivo verificada con ingesta y proyección en marcha: cinco deltas empujados por `LISTEN/NOTIFY`, 239 entregas sin ningún duplicado, cursor siempre creciente y la cabecera `id:` igual al cursor en todos los casos.
+- Conciliación sin pérdidas: esas 239 entregas corresponden a 194 circulaciones distintas, exactamente las 194 filas que la base tenía por encima del cursor inicial. Las 45 entregas extra son 40 circulaciones actualizadas más de una vez, es decir estados sucesivos.
+- Fuera de alcance: la interfaz, que sigue en modo demo, la autenticación y cualquier límite de conexiones.

@@ -87,6 +87,12 @@ La clave de deduplicación de `raw_events` es el **SHA-256 del registro serializ
 
 Interpretar fechas de servicio en Europe/London y almacenar instantes en UTC mediante `resolveLondonLocalEpoch`, nunca con una resta fija de una hora. Respetar las reglas de «Semántica temporal de TRUST»: `observed_at` con resolución de minuto, que puede ser posterior a `received_at`, y orden por recepción. Cubrir medianoche, cambio DST y horarios que sobrepasan las 24 horas en la integración real.
 
+## Contrato de cable
+
+Definido en `packages/domain/src/wire.ts` y compartido por servidor y navegador para que no se desincronicen. Expone identidad, fecha de servicio, estado, retraso, calidad, coordenada nullable, instante observado y versión. **No expone payloads originales del feed.**
+
+`version` es monótona por escritura y es el cursor de reanudación. Un mismo `runId` puede entregarse varias veces con versiones crecientes: son estados sucesivos de la misma circulación, no duplicados.
+
 ## Auditoría adicional pendiente
 
 La autenticación y recepción inicial de MOVEMENT, acceso a CORPUS y muestra de SCHEDULE ya se comprobaron. Falta verificar TD/SMART/VSTP, reconexiones e intervalos más representativos. Auditar un corredor y medir nulos, duplicados, cambios de identidad, cancelaciones y ubicaciones sin resolver. Resolver y validar las coordenadas antes de prometer precisión espacial. La normalización temporal ya está hecha; ver «Semántica temporal de TRUST». Las fuentes geográficas candidatas y su cobertura medida están en [auditoría de fuentes geográficas](geographic-sources.md): NaPTAN resuelve el 76,7 % de los eventos observados y hace falta una segunda fuente para los cruces.

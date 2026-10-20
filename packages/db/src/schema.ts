@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, geometry, date, customType, pgEnum } from "drizzle-orm/pg-core";
+import { bigint, check, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, geometry, date, customType, pgEnum } from "drizzle-orm/pg-core";
 export const positionQuality = pgEnum("position_quality", ["reported", "estimated", "stale", "unknown"]);
 export const locations = pgTable("locations", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -35,7 +35,9 @@ export const trainPositions = pgTable("train_positions", {
   quality: positionQuality("quality").notNull(), source: text("source").notNull(),
   observedAt: timestamp("observed_at", {withTimezone: true}).notNull(),
   receivedAt: timestamp("received_at", {withTimezone: true}).notNull(),
-}, table => [index("train_position_gist").using("gist", table.point), check("train_position_wgs84", sql`${table.point} IS NULL OR ST_SRID(${table.point}) = 4326`)]);
+  /** Monótona por escritura: cursor reanudable para los deltas por SSE. */
+  version: bigint("version", {mode: "number"}).notNull().default(sql`nextval('train_position_version')`),
+}, table => [index("train_position_version_idx").on(table.version), index("train_position_gist").using("gist", table.point), check("train_position_wgs84", sql`${table.point} IS NULL OR ST_SRID(${table.point}) = 4326`)]);
 
 /** Cursor de proyección: permite reprocesar raw_events tras corregir la lógica. */
 export const projectionState = pgTable("projection_state", {

@@ -10,25 +10,99 @@ También se proyectan las **activaciones**: trenes previstos para hoy que aún n
 
 Al seleccionar una circulación se dibuja **por dónde ha pasado**, reconstruido desde `raw_events`. `train_positions` guarda solo la posición actual, así que el recorrido no está proyectado: se deriva de los eventos y por tanto solo alcanza hasta donde llegue la retención. La línea es discontinua a propósito, porque une puntos reportados y **no sigue la vía**; además salta por encima de las ubicaciones que no resuelven a coordenada, que son mayoría en cruces y bucles.
 
-Solo se sirven las circulaciones que han reportado en las últimas dos horas; las que llevan más de quince minutos sin señal se marcan como tales y se atenúan en el mapa. Más límites que la propia interfaz declara: son **reportes de paso por ubicaciones, no GPS**; las marcas de tiempo tienen **resolución de un minuto**; y alrededor de una cuarta parte de las circulaciones **no resuelve a una coordenada** y solo aparece en una lista aparte. El headcode se extrae del identificador de circulación. Origen y destino dependen del horario, enlazado en una fracción mínima de los trenes. Nunca usar este proyecto para decisiones operativas o de viaje.
+Solo se sirven las circulaciones que han reportado en las últimas dos horas; las que llevan más de quince minutos sin señal se marcan como tales y se atenúan en el mapa. Más límites que la propia interfaz declara: son **reportes de paso por ubicaciones, no GPS**; las marcas de tiempo tienen **resolución de un minuto**; y alrededor de una cuarta parte de las circulaciones **no resuelve a una coordenada** y solo aparece en una lista aparte. El headcode se extrae del identificador de circulación y está confirmado contra SCHEDULE. Origen y destino dependen de enlazar el tren con su horario, lo que exige haber capturado su activación: con unas horas de ingesta continua ronda el 9 % de las circulaciones almacenadas, y sube según avanza el día. Nunca usar este proyecto para decisiones operativas o de viaje.
 
-## Ejecutar
+## Qué tienes que hacer
 
-Requiere Node.js 22+.
+Guía completa de operación. Las secciones siguientes detallan cada pieza; esta dice el orden.
+
+### Antes de nada
+
+- Node.js 22 o superior y Docker en marcha.
+- `npm install` en la raíz.
+- Credenciales del portal de Network Rail en `.env` de la raíz, copiando `.env.example`. Son las del portal, no las del wiki de Open Rail Data. Si la contraseña lleva `#`, encierra el valor entre comillas.
+
+### Primera vez, o tras borrar el volumen
 
 ```sh
-npm install
+docker compose up -d
+npm run db:migrate
+```
+
+```sh
+curl -o naptan.xml "https://naptan.api.dft.gov.uk/v1/access-nodes?dataFormat=xml"
+npm run import:naptan -- --file=naptan.xml
+```
+
+```sh
+npm run import:schedule
+```
+
+La descarga de NaPTAN ronda los 580 MB y la carga tarda unos ocho segundos. El horario se descarga solo y tarda unos ocho minutos. Después puedes borrar `naptan.xml`.
+
+### Cada vez que quieras ver datos
+
+Tres terminales, o los dos primeros en segundo plano:
+
+```sh
+docker compose up -d
+```
+
+```sh
+npm run ingest
+```
+
+```sh
+npm run project -- --loop=60
+```
+
+```sh
 npm run dev
 ```
 
-Abrir http://127.0.0.1:3000. La interfaz **requiere la base levantada y datos proyectados**: ver las secciones siguientes. El mapa base descarga teselas vectoriales de OpenFreeMap/OpenStreetMap: necesita conexión a internet. Si falla, los trazados de demostración siguen disponibles sobre fondo oscuro; si WebGL no está disponible, permanecen la lista y el inspector. Se usa Webpack porque Turbopack no pudo iniciar sus procesos locales en el entorno de desarrollo inicial.
+Abrir http://127.0.0.1:3000. Tarda un par de minutos en tener trenes suficientes para que la pantalla resulte útil.
+
+### Mantenimiento
+
+**La poda no se ejecuta sola.** Con el consumidor en marcha de forma permanente, la base crece unos 370 MB al día:
 
 ```sh
-npm run typecheck
-npm test
-npm run build
-npm run db:generate
+npm run prune -- --dry-run
+npm run prune
 ```
+
+**El horario caduca.** Vuelve a importarlo cada día, o el origen y el destino dejarán de resolverse para los trenes nuevos:
+
+```sh
+npm run import:schedule
+```
+
+NaPTAN cambia poco: con rehacerlo cada pocos meses basta.
+
+### Apagar
+
+```sh
+docker compose down
+```
+
+Detén antes el consumidor, la proyección y el servidor de desarrollo con Ctrl+C. `docker compose down` **conserva los datos** en el volumen `rails-tracker-monitor_rails-tracker-pgdata`; añadir `-v` los borra y obliga a repetir la primera vez.
+
+### Comprobar que todo sigue sano
+
+```sh
+npm test
+npm run typecheck
+npm run build
+npm run diagnose:network-rail
+```
+
+## Notas del entorno
+
+El mapa base descarga teselas vectoriales de OpenFreeMap/OpenStreetMap, así que necesita conexión a internet. Si fallan, los trenes se siguen dibujando sobre el fondo oscuro; si no hay WebGL, el mapa desaparece pero la lista y el inspector siguen funcionando.
+
+Se usa Webpack en lugar de Turbopack porque este último no pudo abrir sus puertos internos en el entorno de desarrollo inicial.
+
+`npm run db:generate` regenera las migraciones tras tocar el esquema. Drizzle no genera secuencias ni triggers: las migraciones `0004` y `0007` llevan SQL escrito a mano.
 
 ## Base de datos local
 
@@ -149,15 +223,24 @@ Los errores se muestran como categorías controladas para evitar que mensajes de
 
 Más detalle: [diagnóstico de Network Rail](docs/network-rail-access.md).
 
-## Integración operativa pendiente
+## Decisiones que dependen de ti
 
-1. Revisar el resultado del diagnóstico de acceso y cobertura.
-2. Ampliar la auditoría a intervalos representativos y explicar los eventos cuya marca de tiempo sigue por delante de la recepción tras corregir el offset.
-3. Resolver identidades, códigos y geometría del corredor piloto; ver la [auditoría de fuentes geográficas](docs/geographic-sources.md).
-4. Proyectar circulaciones y posiciones desde `raw_events`, y publicar snapshots y SSE.
-5. Definir retención y archivado de `raw_events` antes de ingerir de forma continuada.
+Esto no es trabajo pendiente de programar, sino cosas que solo puedes resolver tú.
 
-No hay despliegue. La base de desarrollo y las migraciones ya existen en local. La interfaz continúa en modo demo. El diagnóstico ya carga las credenciales de `.env`; las credenciales jamás llevan prefijo `NEXT_PUBLIC_`.
+**Registrarte en Rail Data Marketplace** si quieres cerrar el 23 % de ubicaciones sin coordenada. Los dos productos de BPLAN tienen licencia abierta y son gratuitos para suscriptores; el obstáculo es el alta. Conviene el extracto semanal de OpenTrainTimes antes que el oficial, que se publica dos veces al año. Queda sin comprobar si los ficheros se descargan a demanda o se empujan por SFTP, y eso cambia bastante el trabajo de integrarlos. Ver la [auditoría de fuentes geográficas](docs/geographic-sources.md).
+
+**Decidir si programas la poda.** Hoy es un comando manual. Automatizarla es una decisión de operación, no de código, y nadie debería hacerlo por ti en tu máquina.
+
+**Decidir si aceptas licencias copyleft.** Hay fuentes geográficas con mejor cobertura bajo CC-BY-SA y ODbL, descartadas por ahora porque obligan a publicar las obras derivadas bajo la misma licencia.
+
+## Trabajo pendiente de programar
+
+1. **Lista de paradas y progreso.** El horario ya está en la base con sus `schedule_location` y el recorrido real se sabe reconstruir: es cruzar lo que hay.
+2. **Medir con un día completo de ingesta.** La tasa de enlace con el horario y el umbral de frescura se fijaron con muestras cortas; los quince minutos de frescura salen de una distribución contaminada por capturas intermitentes.
+3. **Explicar dos cosas sin resolver.** Las llegadas con marca más de un minuto por delante de la recepción, y el significado de `schedule_type` en la activación, que no es el indicador STP.
+4. **Geometría real de vía.** Las líneas del mapa unen puntos reportados y no siguen el trazado; eso necesita BPLAN.
+
+No hay despliegue ni infraestructura fuera de tu máquina. Las credenciales jamás llevan prefijo `NEXT_PUBLIC_`.
 
 ## Referencias
 

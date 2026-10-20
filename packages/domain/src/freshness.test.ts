@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { FRESH_SECONDS, SERVE_SECONDS, freshness } from "./freshness";
+import { FRESH_SECONDS, SERVE_SECONDS, activatedInWindow, freshness } from "./freshness";
 
 const NOW = Date.UTC(2026, 9, 20, 12, 0, 0);
 const agoSeconds = (seconds: number) => new Date(NOW - seconds * 1000).toISOString();
@@ -28,4 +28,17 @@ test("an unparseable timestamp expires instead of passing as fresh", () => {
 
 test("Date and ISO string are treated alike", () => {
   assert.equal(freshness(new Date(NOW - 60_000), NOW), "fresh");
+});
+
+test("an activated train is shown around its scheduled departure, not its activation", () => {
+  const at = (seconds: number) => new Date(NOW + seconds * 1000).toISOString();
+  assert.equal(activatedInWindow(at(60 * 60), NOW), true);           // sale en una hora
+  assert.equal(activatedInWindow(at(-30 * 60), NOW), true);          // salió hace media hora y no reportó
+  assert.equal(activatedInWindow(at(-90 * 60), NOW), false);         // debió salir hace rato
+  assert.equal(activatedInWindow(at(5 * 60 * 60), NOW), false);      // sale demasiado tarde
+});
+
+test("an activated train without a scheduled departure is not kept by this rule", () => {
+  assert.equal(activatedInWindow(null, NOW), false);
+  assert.equal(activatedInWindow("no es una fecha", NOW), false);
 });

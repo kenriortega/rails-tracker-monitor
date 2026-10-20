@@ -43,11 +43,12 @@ async function projectPage(db: Database, totals: Totals): Promise<boolean> {
        * se deja como está.
        */
       const run = await db.execute(sql`
-        insert into service_runs (provider, provider_run_id, service_date, status, toc_id, headcode)
-        values (${PROVIDER}, ${activation.providerRunId}, ${activation.serviceDate}, ${"activated"}, ${activation.tocId}, ${activation.headcode})
+        insert into service_runs (provider, provider_run_id, service_date, status, toc_id, headcode, scheduled_departure)
+        values (${PROVIDER}, ${activation.providerRunId}, ${activation.serviceDate}, ${"activated"}, ${activation.tocId}, ${activation.headcode}, ${activation.scheduledDeparture})
         on conflict (provider, service_date, provider_run_id) do update set
           toc_id = coalesce(service_runs.toc_id, excluded.toc_id),
-          headcode = coalesce(service_runs.headcode, excluded.headcode)
+          headcode = coalesce(service_runs.headcode, excluded.headcode),
+          scheduled_departure = coalesce(excluded.scheduled_departure, service_runs.scheduled_departure)
         returning id`);
       // Marcador sin coordenada: el tren se conoce, su posición todavía no.
       await db.execute(sql`

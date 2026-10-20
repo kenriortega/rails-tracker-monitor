@@ -1,6 +1,6 @@
 import "server-only";
 import { sql } from "drizzle-orm";
-import { SERVE_SECONDS, type LiveRun } from "@rails/domain";
+import { ACTIVATED_GRACE_SECONDS, ACTIVATED_LEAD_SECONDS, SERVE_SECONDS, type LiveRun } from "@rails/domain";
 import { database } from "./database";
 
 /**
@@ -12,6 +12,7 @@ export async function liveRuns(since = 0, limit = 5000): Promise<LiveRun[]> {
     select p.run_id as "runId", r.provider_run_id as "providerRunId",
            to_char(r.service_date, 'YYYY-MM-DD') as "serviceDate",
            r.headcode, r.status, r.delay_seconds as "delaySeconds", r.toc_id as "tocId", p.quality,
+           to_char(r.scheduled_departure at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "scheduledDeparture",
            coalesce(lo.name, ends.origin_tiploc) as origin,
            coalesce(ld.name, ends.destination_tiploc) as destination,
            case when p.point is null then null
@@ -32,7 +33,16 @@ export async function liveRuns(since = 0, limit = 5000): Promise<LiveRun[]> {
       -- Fuera de la ventana no se sirve: la vista acumulaba circulaciones que
       -- dejaron de reportar hace horas. El cliente también las caduca por su
       -- cuenta, porque envejecer no genera una versión nueva que empujar.
-      and p.observed_at > now() - make_interval(secs => ${SERVE_SECONDS})
+      --
+      -- Un tren activado no tiene reportes que envejecer, así que su ventana se
+      -- ancla a la salida prevista del origen en lugar de a la activación.
+      and (
+        case when r.status = 'activated' and r.scheduled_departure is not null
+          then r.scheduled_departure between now() - make_interval(secs => ${ACTIVATED_GRACE_SECONDS})
+                                         and now() + make_interval(secs => ${ACTIVATED_LEAD_SECONDS})
+          else p.observed_at > now() - make_interval(secs => ${SERVE_SECONDS})
+        end
+      )
     order by p.version
     limit ${limit}`);
   return result.rows as unknown as LiveRun[];

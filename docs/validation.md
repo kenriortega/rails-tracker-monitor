@@ -165,3 +165,13 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Verificado en el navegador: el filtro «Con recorrido» deja 88 circulaciones, las filas dicen «Activado · aún sin reportar» y el inspector muestra origen y destino según horario.
 - Fallo de etiquetado propio, visto al probarlo: un tren activado aparecía como «sin señal reciente» cuando en realidad nunca había reportado. Corregido a «aún sin reportar», y la métrica de señal perdida ya no los cuenta.
 - **Pendiente:** una activación desaparece de la vista dos horas después de emitirse aunque el tren no haya salido, porque la ventana de servicio mide antigüedad del último reporte. Para los activados debería medirse contra su fecha de servicio.
+
+## Corrección de la ventana de los activados
+
+- Sesenta y dos pruebas, revisión de tipos y `npm run build` satisfactorios. Dos nuevas cubren la ventana alrededor de la salida prevista y el caso sin salida conocida.
+- Problema: un tren activado desaparecía dos horas después de emitirse su activación aunque no hubiese salido, porque la ventana medía antigüedad del último reporte y esos trenes no tienen ninguno.
+- Medido antes de decidir el criterio: la activación llega con una antelación mediana de 60 minutos sobre la salida prevista, con p10 de 59 minutos y p90 de cinco horas. De 158 activaciones, 59 ya debían haber salido, 69 salían en las tres horas siguientes y 30 más tarde.
+- Migración `0008`: columna `scheduled_departure` en `service_runs`, tomada de `origin_dep_timestamp` y decodificada como cualquier otro epoch londinense. Las 165 circulaciones activadas la obtuvieron.
+- La ventana de un activado va de tres horas antes de su salida prevista a una hora después. Servidor y cliente aplican la misma regla, porque envejecer no genera versión nueva que empujar.
+- Efecto verificado: 83 de 165 activadas quedan dentro de la ventana. Una circulación concreta, activada hacía 233 minutos y con salida hacía 54, se mostraba gracias al cambio y antes habría desaparecido. La regla también retira las activaciones cuya salida queda a más de tres horas, que antes se colaban por ser recientes.
+- Verificado en el navegador: las filas de trenes activados leen «Sale 03:56 · sin reportar» y el inspector añade la salida prevista.

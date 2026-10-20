@@ -21,3 +21,23 @@ export function freshness(observedAt: string | Date, now: number = Date.now()): 
   if (age <= SERVE_SECONDS) return "stale";
   return "expired";
 }
+
+/**
+ * Ventana de los trenes activados que todavía no han reportado.
+ *
+ * No puede medirse por antigüedad del último reporte, porque no hay ninguno:
+ * un activado desaparecía a las dos horas aunque no hubiese salido. Se ancla a
+ * la salida prevista del origen, que la activación trae. La antelación mediana
+ * medida entre activación y salida fue de 60 minutos, con p90 de cinco horas.
+ */
+export const ACTIVATED_LEAD_SECONDS = 3 * 60 * 60;
+export const ACTIVATED_GRACE_SECONDS = 60 * 60;
+
+/** Cierto mientras un tren activado deba mostrarse, aunque no haya reportado. */
+export function activatedInWindow(scheduledDeparture: string | null | undefined, now: number = Date.now()): boolean {
+  if (!scheduledDeparture) return false;
+  const departure = Date.parse(scheduledDeparture);
+  if (!Number.isFinite(departure)) return false;
+  const seconds = (departure - now) / 1000;
+  return seconds <= ACTIVATED_LEAD_SECONDS && seconds >= -ACTIVATED_GRACE_SECONDS;
+}

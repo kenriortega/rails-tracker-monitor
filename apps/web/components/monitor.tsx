@@ -97,7 +97,8 @@ export function Monitor() {
           <span className={`delay-tag ${delayTone(run.delaySeconds)}`}>{delayLabel(run.delaySeconds)}</span>
         </div>
         <div className="train-row-bottom">
-          <span>{run.status === "activated" ? "Activado · aún sin reportar"
+          <span>{run.status === "activated"
+                 ? `Sale ${run.scheduledDeparture ? hhmm.format(new Date(run.scheduledDeparture)) : "—"} · sin reportar`
                  : freshness(run.observedAt, now) === "stale" ? "Sin señal reciente"
                  : resolveOperator(run.tocId)?.label ?? "Operador desconocido"}</span>
           <span className="mono">{hhmm.format(new Date(run.observedAt))}</span>
@@ -238,6 +239,7 @@ function Inspector({run, now, trail, follow, onFollow, onClose}: {run: LiveRun; 
         <div><dt>Coordenada</dt><dd className="mono">{run.coordinate ? `${run.coordinate[1].toFixed(4)}, ${run.coordinate[0].toFixed(4)}` : "—"}</dd></div>
         <div><dt>Observado</dt><dd className="mono">{hhmm.format(new Date(run.observedAt))} BST</dd></div>
         <div><dt>Fecha de servicio</dt><dd className="mono">{run.serviceDate}</dd></div>
+        {run.scheduledDeparture && <div><dt>Salida prevista</dt><dd className="mono">{hhmm.format(new Date(run.scheduledDeparture))} BST</dd></div>}
       </dl>
       <div className="detail-divider"/>
       <div className="detail-section-title"><h3>Recorrido</h3><span>{run.origin || run.destination ? "SEGÚN HORARIO" : "SIN ENLACE"}</span></div>

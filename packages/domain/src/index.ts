@@ -62,6 +62,6 @@ export function trainColor(train: DemoTrain): string { return train.stale ? "#8b
 export { routes, trains } from "./fixtures";
 export { londonOffsetMs, londonServiceDate, resolveLondonLocalEpoch, type LondonResolution, type ResolvedInstant } from "./time";
 export type { LiveRun, Snapshot, Delta, Trail, TrailPoint } from "./wire";
-export { FRESH_SECONDS, SERVE_SECONDS, freshness, type Freshness } from "./freshness";
+export { FRESH_SECONDS, SERVE_SECONDS, ACTIVATED_LEAD_SECONDS, ACTIVATED_GRACE_SECONDS, activatedInWindow, freshness, type Freshness } from "./freshness";
 export { headcodeFromTrainId } from "./identity";
 export { operator, type Operator } from "./operators";

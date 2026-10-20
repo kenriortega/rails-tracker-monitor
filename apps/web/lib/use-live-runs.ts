@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { freshness, type Delta, type LiveRun, type Snapshot } from "@rails/domain";
+import { activatedInWindow, freshness, type Delta, type LiveRun, type Snapshot } from "@rails/domain";
 
 export type ConnectionState = "connecting" | "live" | "reconnecting" | "failed";
 
@@ -36,7 +36,12 @@ export function useLiveRuns(): LiveData {
       const instant = Date.now();
       let dropped = false;
       for (const [id, run] of byId.current) {
-        if (freshness(run.observedAt, instant) === "expired") { byId.current.delete(id); dropped = true; }
+        // Misma regla que el servidor: los activados se miden por su salida
+        // prevista, no por la antigüedad de un reporte que no existe.
+        const servable = run.status === "activated" && run.scheduledDeparture
+          ? activatedInWindow(run.scheduledDeparture, instant)
+          : freshness(run.observedAt, instant) !== "expired";
+        if (!servable) { byId.current.delete(id); dropped = true; }
       }
       if (dropped) setRuns([...byId.current.values()]);
       setNow(instant);

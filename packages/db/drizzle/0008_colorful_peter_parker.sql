@@ -1,0 +1,1 @@
+ALTER TABLE "service_runs" ADD COLUMN "scheduled_departure" timestamp with time zone;

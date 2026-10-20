@@ -85,6 +85,15 @@ export interface ActivationProjection {
   headcode: string | null;
   tocId: string | null;
   observedAt: Date;
+  /** Salida prevista del origen, con la misma codificación londinense. */
+  scheduledDeparture: Date | null;
+}
+
+function londonEpoch(raw: string): Date | null {
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const resolved = resolveLondonLocalEpoch(value);
+  return resolved.utc === null ? null : new Date(resolved.utc);
 }
 
 export function projectActivation(payload: unknown, receivedAt: Date): ActivationProjection | null {
@@ -105,6 +114,7 @@ export function projectActivation(payload: unknown, receivedAt: Date): Activatio
     providerRunId, serviceDate,
     headcode: headcodeFromTrainId(providerRunId),
     tocId: text(body.toc_id) || null,
-    observedAt: resolved?.utc != null ? new Date(resolved.utc) : receivedAt
+    observedAt: resolved?.utc != null ? new Date(resolved.utc) : receivedAt,
+    scheduledDeparture: londonEpoch(text(body.origin_dep_timestamp))
   };
 }

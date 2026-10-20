@@ -15,6 +15,8 @@ export interface LiveRun {
   /** Código de operador de TRUST; nulo cuando el mensaje no lo trae. */
   tocId: string | null;
   quality: PositionQuality;
+  /** Salida prevista del origen; solo la traen las circulaciones activadas. */
+  scheduledDeparture: string | null;
   /** Extremos del horario enlazado; nulos mientras no haya activación capturada. */
   origin: string | null;
   destination: string | null;

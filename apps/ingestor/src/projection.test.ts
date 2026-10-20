@@ -44,6 +44,11 @@ test("without a usable timestamp the reception time dates the run", () => {
   assert.equal(projected?.serviceDate, "2026-10-19");
 });
 
+test("the headcode is extracted from the train identifier", () => {
+  assert.equal(projectMovement(movement({train_id: "725N79M919"}), RECEIVED)?.headcode, "5N79");
+  assert.equal(projectMovement(movement({train_id: "ABCDEFGHIJ"}), RECEIVED)?.headcode, null);
+});
+
 test("the operator code is carried through when present", () => {
   assert.equal(projectMovement(movement({train_id: "A", toc_id: "23"}), RECEIVED)?.tocId, "23");
   assert.equal(projectMovement(movement({train_id: "A"}), RECEIVED)?.tocId, null);

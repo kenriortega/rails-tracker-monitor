@@ -38,11 +38,12 @@ async function projectPage(db: Database, totals: Totals): Promise<boolean> {
     totals.projected++;
 
     const run = await db.execute(sql`
-      insert into service_runs (provider, provider_run_id, service_date, status, delay_seconds, toc_id)
-      values (${PROVIDER}, ${movement.providerRunId}, ${movement.serviceDate}, ${movement.status}, ${movement.delaySeconds}, ${movement.tocId})
+      insert into service_runs (provider, provider_run_id, service_date, status, delay_seconds, toc_id, headcode)
+      values (${PROVIDER}, ${movement.providerRunId}, ${movement.serviceDate}, ${movement.status}, ${movement.delaySeconds}, ${movement.tocId}, ${movement.headcode})
       on conflict (provider, service_date, provider_run_id) do update set
         status = excluded.status, delay_seconds = coalesce(excluded.delay_seconds, service_runs.delay_seconds),
-        toc_id = coalesce(excluded.toc_id, service_runs.toc_id)
+        toc_id = coalesce(excluded.toc_id, service_runs.toc_id),
+        headcode = coalesce(excluded.headcode, service_runs.headcode)
       returning id`);
     const runId = (run.rows[0] as {id: string}).id;
 
@@ -79,6 +80,34 @@ async function projectPage(db: Database, totals: Totals): Promise<boolean> {
   return events.length === PAGE;
 }
 
+/**
+ * Enlaza circulaciones con su horario a través de la activación `0001`, que es
+ * el único mensaje que trae `train_uid`. Los movimientos no lo llevan, así que
+ * sin haber capturado la activación del tren no hay enlace posible.
+ *
+ * La unión es por `train_uid` y fecha de inicio, **sin** el indicador STP. El
+ * campo `schedule_type` de la activación no es ese indicador: sobre 63
+ * activaciones reales decía `O` donde el horario de esa fecha era `P`, y al
+ * revés. Por uid y fecha coincidieron 53 de 63 sin una sola ambigüedad, así que
+ * la clave basta y no hace falta interpretar un campo cuyo significado no está
+ * verificado.
+ */
+async function linkSchedules(db: Database) {
+  const linked = await db.execute(sql`
+    update service_runs r set schedule_id = s.id
+    from raw_events e
+    join schedules s
+      on s.uid = e.payload->'body'->>'train_uid'
+     and s.valid_from = (e.payload->'body'->>'schedule_start_date')::date
+    where e.payload->'header'->>'msg_type' = '0001'
+      and r.provider_run_id = e.payload->'body'->>'train_id'
+      and r.schedule_id is null
+    returning r.id`);
+  const coverage = await db.execute(sql`
+    select count(*)::int as runs, count(schedule_id)::int as withSchedule from service_runs`);
+  return {linkedNow: linked.rows.length, ...(coverage.rows[0] as Record<string, number>)};
+}
+
 async function main() {
   const root = new URL("../../../", import.meta.url);
   try { loadEnvFile(fileURLToPath(new URL(".env", root))); } catch { /* el entorno puede traerlo */ }
@@ -93,12 +122,13 @@ async function main() {
     }
     const totals: Totals = {read: 0, projected: 0, skipped: 0, positions: 0, unresolved: 0};
     while (await projectPage(db, totals)) { /* siguiente página */ }
+    const schedules = await linkSchedules(db);
     const state = await db.execute(sql`
       select (select count(*)::int from service_runs) as runs,
              (select count(*)::int from train_positions) as positions,
              (select count(*)::int from train_positions where quality = 'reported') as reported,
              (select count(*)::int from train_positions where quality = 'unknown') as unknown`);
-    console.info(JSON.stringify({step: "done", ...totals, state: state.rows[0]}));
+    console.info(JSON.stringify({step: "done", ...totals, state: state.rows[0], schedules}));
   } finally {
     await close();
   }

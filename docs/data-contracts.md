@@ -93,6 +93,14 @@ Definido en `packages/domain/src/wire.ts` y compartido por servidor y navegador 
 
 `version` es monótona por escritura y es el cursor de reanudación. Un mismo `runId` puede entregarse varias veces con versiones crecientes: son estados sucesivos de la misma circulación, no duplicados.
 
+## Identidad y horario
+
+El `train_id` de TRUST lleva el **headcode en las posiciones 3 a 6**. Verificado sobre 63 activaciones reales: en las 63, esos cuatro caracteres coinciden con los cuatro primeros de `schedule_wtt_id`. Ambos campos los emite TRUST, así que concuerdan dos valores del mismo origen y no dos sistemas independientes; un contraste contra `signalling_id` de SCHEDULE sería la confirmación definitiva. Cuando los caracteres no cumplen `[0-9][A-Z][0-9]{2}` el headcode queda nulo.
+
+El horario se enlaza por `train_uid` y fecha de inicio, **sin** el indicador STP. **`schedule_type` de la activación no es ese indicador**: sobre las 63 activaciones decía `O` donde el horario de esa fecha era `P`, y al revés. Por uid y fecha coincidieron 53 de 63 sin una sola ambigüedad. No se interpreta `schedule_type` mientras su significado no esté verificado.
+
+El enlace depende por completo de haber capturado la activación, que es el único mensaje con `train_uid` y se emite horas antes de la circulación. Con los datos actuales alcanza a **2 de 1.229 circulaciones**.
+
 ## Auditoría adicional pendiente
 
 La autenticación y recepción inicial de MOVEMENT, acceso a CORPUS y muestra de SCHEDULE ya se comprobaron. Falta verificar TD/SMART/VSTP, reconexiones e intervalos más representativos. Auditar un corredor y medir nulos, duplicados, cambios de identidad, cancelaciones y ubicaciones sin resolver. Resolver y validar las coordenadas antes de prometer precisión espacial. La normalización temporal ya está hecha; ver «Semántica temporal de TRUST». Las fuentes geográficas candidatas y su cobertura medida están en [auditoría de fuentes geográficas](geographic-sources.md): NaPTAN resuelve el 76,7 % de los eventos observados y hace falta una segunda fuente para los cruces.

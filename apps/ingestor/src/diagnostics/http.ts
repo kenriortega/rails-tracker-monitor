@@ -18,11 +18,12 @@ export function safeErrorCode(error: unknown): string {
 }
 
 /** Authorization never follows a cross-origin redirect, including signed S3 downloads. */
-export async function fetchFeed(path: string, credentials: Credentials, request: typeof fetch = fetch): Promise<Response> {
+export async function fetchFeed(path: string, credentials: Credentials, request: typeof fetch = fetch, timeoutMs = 30_000): Promise<Response> {
   let url = new URL(path, PORTAL);
   if (url.origin !== PORTAL) throw new Error("REDIRECT_REJECTED");
   const authorization = `Basic ${Buffer.from(`${credentials.username}:${credentials.password}`).toString("base64")}`;
-  const signal = AbortSignal.timeout(30_000);
+  // El diagnóstico se conforma con 30 s; la descarga del horario completo no.
+  const signal = AbortSignal.timeout(timeoutMs);
   for (let redirects = 0; redirects < 5; redirects++) {
     const response = await request(url, {headers: url.origin === PORTAL ? {Authorization: authorization} : {}, redirect: "manual", signal});
     if (![301, 302, 303, 307, 308].includes(response.status)) return response;
@@ -37,8 +38,14 @@ export async function fetchFeed(path: string, credentials: Credentials, request:
   throw new Error("TOO_MANY_REDIRECTS");
 }
 
-/** Decode gzip files or already-decoded responses; cancel the download on early exit. */
-export async function* decodedChunks(response: Response): AsyncGenerator<Buffer> {
+/**
+ * Decode gzip files or already-decoded responses; cancel the download on early exit.
+ *
+ * El límite protege al diagnóstico de una respuesta inesperadamente grande. La
+ * importación del horario completo lo eleva a propósito, porque ese fichero sí
+ * se espera voluminoso.
+ */
+export async function* decodedChunks(response: Response, limitBytes = 32 * 1024 * 1024): AsyncGenerator<Buffer> {
   if (!response.body) throw new Error("EMPTY_BODY");
   const reader = response.body.getReader();
   let source: Readable | undefined;
@@ -60,7 +67,7 @@ export async function* decodedChunks(response: Response): AsyncGenerator<Buffer>
         const next = await reader.read();
         if (next.done) break;
         inputBytes += next.value.length;
-        if (inputBytes > 32 * 1024 * 1024) throw new Error("BODY_LIMIT");
+        if (inputBytes > limitBytes) throw new Error("BODY_LIMIT");
         yield Buffer.from(next.value);
       }
     };

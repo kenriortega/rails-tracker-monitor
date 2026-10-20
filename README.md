@@ -6,7 +6,7 @@ Central ferroviaria experimental con Next.js, shadcn/ui, MapLibre y una base de 
 
 Central de operaciones sobre **datos reales** de Network Rail. El feed MOVEMENT se ingiere, se proyecta y se sirve al navegador: snapshot inicial y cambios en vivo por SSE, con el mapa dibujando las posiciones reportadas sobre capas WebGL.
 
-Solo se sirven las circulaciones que han reportado en las últimas dos horas; las que llevan más de quince minutos sin señal se marcan como tales y se atenúan en el mapa. Más límites que la propia interfaz declara: son **reportes de paso por ubicaciones, no GPS**; las marcas de tiempo tienen **resolución de un minuto**; y alrededor de una cuarta parte de las circulaciones **no resuelve a una coordenada** y solo aparece en una lista aparte. No hay origen, destino ni headcode, que exigirían importar SCHEDULE. Nunca usar este proyecto para decisiones operativas o de viaje.
+Solo se sirven las circulaciones que han reportado en las últimas dos horas; las que llevan más de quince minutos sin señal se marcan como tales y se atenúan en el mapa. Más límites que la propia interfaz declara: son **reportes de paso por ubicaciones, no GPS**; las marcas de tiempo tienen **resolución de un minuto**; y alrededor de una cuarta parte de las circulaciones **no resuelve a una coordenada** y solo aparece en una lista aparte. El headcode se extrae del identificador de circulación. Origen y destino dependen del horario, enlazado en una fracción mínima de los trenes. Nunca usar este proyecto para decisiones operativas o de viaje.
 
 ## Ejecutar
 
@@ -64,6 +64,17 @@ Lee `raw_events` con un cursor y mantiene `service_runs` y `train_positions`. Va
 Una posición solo es `reported` cuando su STANOX resuelve a un punto único en `locations`. Si no resuelve, o si resuelve a puntos distintos, queda `unknown` **sin coordenada inventada**.
 
 Dos limitaciones declaradas: la fecha de servicio se deriva de la fecha londinense del evento, así que un tren que cruce medianoche producirá dos circulaciones; y el headcode queda nulo porque la descomposición de `train_id` no está verificada.
+
+## Importación del horario
+
+```sh
+npm run import:schedule
+npm run import:schedule -- --date=2026-10-21 --file=schedule.json.gz
+```
+
+Descarga SCHEDULE, conserva solo los horarios cuya validez cubre la fecha indicada y los guarda en `schedules`. Medido: 815.030 líneas, **94.505 horarios vigentes y 241 MB de tabla**, en unos ocho minutos. Importar el fichero entero multiplicaría ese volumen sin poder aprovecharlo.
+
+**El enlace es hoy casi inexistente: 2 de 1.229 circulaciones.** Un horario solo se puede asociar a través del mensaje de activación, que es el único que trae `train_uid` y se emite horas antes de que el tren circule. Con capturas cortas no se ven. Origen y destino aparecen únicamente en las circulaciones enlazadas; el resto muestra «sin enlace». La proporción debería subir con ingesta continua, y conviene medirla antes de sacar conclusiones.
 
 ## Retención
 

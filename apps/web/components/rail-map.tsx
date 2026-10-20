@@ -34,7 +34,7 @@ function toFeatures(runs: LiveRun[], now: number) {
     features: runs.filter(run => run.coordinate).map(run => ({
       type: "Feature" as const,
       id: run.version,
-      properties: {runId: run.runId, code: run.providerRunId, delay: run.delaySeconds ?? 0, stale: freshness(run.observedAt, now) === "stale"},
+      properties: {runId: run.runId, code: run.headcode ?? run.providerRunId, delay: run.delaySeconds ?? 0, stale: freshness(run.observedAt, now) === "stale"},
       geometry: {type: "Point" as const, coordinates: run.coordinate as [number, number]}
     }))
   };

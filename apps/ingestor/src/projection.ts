@@ -1,4 +1,4 @@
-import { londonServiceDate } from "@rails/domain";
+import { headcodeFromTrainId, londonServiceDate } from "@rails/domain";
 import { observedAtFrom } from "./records";
 
 export const PROVIDER = "TRUST";
@@ -9,6 +9,7 @@ export type RunStatus = "running" | "terminated";
 export interface MovementProjection {
   providerRunId: string;
   serviceDate: string;
+  headcode: string | null;
   status: RunStatus;
   delaySeconds: number | null;
   tocId: string | null;
@@ -62,6 +63,7 @@ export function projectMovement(payload: unknown, receivedAt: Date): MovementPro
   return {
     providerRunId,
     serviceDate: londonServiceDate(observedAt),
+    headcode: headcodeFromTrainId(providerRunId),
     status: text(body.train_terminated).toLowerCase() === "true" ? "terminated" : "running",
     delaySeconds: delaySecondsFrom(body),
     tocId: text(body.toc_id) || null,

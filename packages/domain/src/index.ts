@@ -63,3 +63,4 @@ export { routes, trains } from "./fixtures";
 export { londonOffsetMs, londonServiceDate, resolveLondonLocalEpoch, type LondonResolution, type ResolvedInstant } from "./time";
 export type { LiveRun, Snapshot, Delta } from "./wire";
 export { FRESH_SECONDS, SERVE_SECONDS, freshness, type Freshness } from "./freshness";
+export { headcodeFromTrainId } from "./identity";

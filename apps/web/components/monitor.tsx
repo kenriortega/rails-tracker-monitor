@@ -49,7 +49,7 @@ export function Monitor() {
   const matching = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return runs.filter(run => {
-      if (needle && !run.providerRunId.toLowerCase().includes(needle)) return false;
+      if (needle && !`${run.headcode ?? ""} ${run.providerRunId}`.toLowerCase().includes(needle)) return false;
       if (operator !== "all" && run.tocId !== operator) return false;
       if (filter === "delayed") return (run.delaySeconds ?? 0) > 0;
       if (filter === "early") return (run.delaySeconds ?? 0) < 0;
@@ -71,7 +71,7 @@ export function Monitor() {
     <li key={run.runId}>
       <button type="button" className={`train-row ${run.runId === selectedId ? "selected" : ""} ${freshness(run.observedAt, now) === "stale" ? "stale" : ""}`} onClick={() => setSelectedId(run.runId)} aria-pressed={run.runId === selectedId}>
         <div className="train-row-top">
-          <span className="service-code mono">{run.providerRunId}</span>
+          <span className="service-code mono">{run.headcode ?? run.providerRunId}</span>
           <span className={`delay-tag ${delayTone(run.delaySeconds)}`}>{delayLabel(run.delaySeconds)}</span>
         </div>
         <div className="train-row-bottom">
@@ -118,7 +118,7 @@ export function Monitor() {
         <section className="operations">
           <aside className="fleet-panel">
             <div className="panel-heading"><h2>Circulaciones</h2><span className="count-tag">{matching.length}</span></div>
-            <label className="search-field"><Search size={14}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar identificador" aria-label="Buscar circulación"/></label>
+            <label className="search-field"><Search size={14}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar headcode o identificador" aria-label="Buscar circulación"/></label>
             <div className="filter-tabs" role="group" aria-label="Filtrar circulaciones">
               <button type="button" className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>Todas</button>
               <button type="button" className={filter === "delayed" ? "active" : ""} onClick={() => setFilter("delayed")}>Con retraso</button>
@@ -198,7 +198,7 @@ function Inspector({run, now, follow, onFollow, onClose}: {run: LiveRun; now: nu
       </div>
       <div className="train-detail-title">
         <span className="detail-train-icon"><TrainFront size={19}/></span>
-        <div><h2>{run.providerRunId}</h2><p>Operador {run.tocId ?? "—"} · {run.serviceDate}</p></div>
+        <div><h2>{run.headcode ?? "—"}</h2><p className="mono">{run.providerRunId}</p><p>Operador {run.tocId ?? "—"} · {run.serviceDate}</p></div>
       </div>
       <div className="detail-status">
         <span className={`delay-tag ${delayTone(run.delaySeconds)}`}>{delayLabel(run.delaySeconds)}</span>
@@ -210,6 +210,12 @@ function Inspector({run, now, follow, onFollow, onClose}: {run: LiveRun; now: nu
         <div><dt>Coordenada</dt><dd className="mono">{run.coordinate ? `${run.coordinate[1].toFixed(4)}, ${run.coordinate[0].toFixed(4)}` : "—"}</dd></div>
         <div><dt>Observado</dt><dd className="mono">{hhmm.format(new Date(run.observedAt))} BST</dd></div>
         <div><dt>Fecha de servicio</dt><dd className="mono">{run.serviceDate}</dd></div>
+      </dl>
+      <div className="detail-divider"/>
+      <div className="detail-section-title"><h3>Recorrido</h3><span>{run.origin || run.destination ? "SEGÚN HORARIO" : "SIN ENLACE"}</span></div>
+      <dl className="detail-journey">
+        <div><dt>Origen</dt><dd>{run.origin ?? "—"}</dd></div>
+        <div><dt>Destino</dt><dd>{run.destination ?? "—"}</dd></div>
       </dl>
       <button type="button" className={`follow-button ${follow ? "following" : ""}`} onClick={onFollow} disabled={!run.coordinate}>
         <Focus size={14}/>{follow ? "Dejar de seguir" : "Seguir en el mapa"}

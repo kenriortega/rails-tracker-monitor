@@ -110,3 +110,14 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Migración `0006` aplicada: índices sobre `raw_events.received_at` y `train_positions.observed_at`. Siete migraciones registradas.
 - Guardado por cursor verificado en ambos sentidos con filas sintéticas de diez días: con el cursor atrasado veinte días, las tres quedaron retenidas y cero borrables; con el cursor al día, las tres pasaron a borrables. La poda real eliminó esas tres y dejó intactas las 2.106 legítimas. El montaje de prueba se deshizo.
 - Fuera de alcance: archivado en frío, particionado y cualquier programación periódica de la poda.
+
+## Entrega de headcode y horario
+
+- Cincuenta y dos pruebas, revisión de tipos y `npm run build` satisfactorios. Ocho nuevas cubren la extracción del headcode, incluidos los casos que no cumplen el formato, y el lector de SCHEDULE con líneas partidas, registros ajenos, cancelaciones y ventana de validez.
+- Headcode sin migración, usando la columna que existía desde la primera: **las 1.229 circulaciones lo obtuvieron y ninguna con formato inválido**.
+- Evidencia de la hipótesis, obtenida sin descargar nada: en las 63 activaciones almacenadas, los cuatro primeros caracteres de `schedule_wtt_id` coinciden con los caracteres 3 a 6 de `train_id`. Las 63 de 63.
+- Importación real: 815.030 líneas leídas, 94.505 horarios vigentes guardados, 488.396 fuera de la ventana de validez y 139.024 cancelaciones, en unos ocho minutos. La tabla ocupa 241 MB.
+- Dos límites de las utilidades de diagnóstico tuvieron que ampliarse para el fichero completo: el plazo de descarga y el tope de tamaño, ambos ahora configurables y con su valor conservador por defecto.
+- Fallo encontrado durante la verificación: el primer enlace unía por indicador STP y daba cero coincidencias. La causa es que `schedule_type` de la activación **no es** ese indicador. Uniendo por uid y fecha coinciden 53 de 63 activaciones sin ambigüedad.
+- **Tasa de enlace real: 2 de 1.229 circulaciones, el 0,16 %.** Es la consecuencia esperada de que las activaciones se emitan horas antes y las capturas sean cortas. Origen y destino solo aparecen en esas dos; el resto muestra «sin enlace».
+- Verificado por la API: 252 circulaciones servidas, las 252 con headcode, 2 con recorrido. Una de ellas muestra el destino como código TIPLOC crudo porque esa ubicación no está en NaPTAN, que es el repliegue previsto.

@@ -8,11 +8,16 @@ export interface LiveRun {
   runId: string;
   providerRunId: string;
   serviceDate: string;
+  /** Cuatro caracteres extraídos de train_id; nulo si no cumple el formato. */
+  headcode: string | null;
   status: string;
   delaySeconds: number | null;
   /** Código de operador de TRUST; nulo cuando el mensaje no lo trae. */
   tocId: string | null;
   quality: PositionQuality;
+  /** Extremos del horario enlazado; nulos mientras no haya activación capturada. */
+  origin: string | null;
+  destination: string | null;
   /** Nula cuando la ubicación no resuelve o resuelve a puntos distintos. */
   coordinate: [longitude: number, latitude: number] | null;
   observedAt: string;

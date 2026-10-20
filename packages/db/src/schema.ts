@@ -28,7 +28,9 @@ export const rawEvents = pgTable("raw_events", {
   observedAt: timestamp("observed_at", {withTimezone: true}),
   receivedAt: timestamp("received_at", {withTimezone: true}).defaultNow().notNull(),
   payload: jsonb("payload").notNull(),
-}, table => [uniqueIndex("raw_event_deduplication").on(table.feed, table.deduplicationKey)]);
+}, table => [uniqueIndex("raw_event_deduplication").on(table.feed, table.deduplicationKey),
+   /** La poda recorre por recepción; sin este índice barrería la tabla entera. */
+   index("raw_event_received_at").on(table.receivedAt)]);
 export const trainPositions = pgTable("train_positions", {
   runId: uuid("run_id").primaryKey().references(() => serviceRuns.id),
   point: geometry("point", {type: "point", mode: "tuple", srid: 4326}),
@@ -37,7 +39,7 @@ export const trainPositions = pgTable("train_positions", {
   receivedAt: timestamp("received_at", {withTimezone: true}).notNull(),
   /** Monótona por escritura: cursor reanudable para los deltas por SSE. */
   version: bigint("version", {mode: "number"}).notNull().default(sql`nextval('train_position_version')`),
-}, table => [index("train_position_version_idx").on(table.version), index("train_position_gist").using("gist", table.point), check("train_position_wgs84", sql`${table.point} IS NULL OR ST_SRID(${table.point}) = 4326`)]);
+}, table => [index("train_position_version_idx").on(table.version), index("train_position_observed_at").on(table.observedAt), index("train_position_gist").using("gist", table.point), check("train_position_wgs84", sql`${table.point} IS NULL OR ST_SRID(${table.point}) = 4326`)]);
 
 /** Cursor de proyección: permite reprocesar raw_events tras corregir la lógica. */
 export const projectionState = pgTable("projection_state", {

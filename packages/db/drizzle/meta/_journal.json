@@ -43,6 +43,13 @@
       "when": 1792455422729,
       "tag": "0005_robust_santa_claus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792456180877,
+      "tag": "0006_graceful_yellowjacket",
+      "breakpoints": true
     }
   ]
 }

@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { Map as LibreMap } from "maplibre-gl";
-import type { LiveRun } from "@rails/domain";
+import { freshness, type LiveRun } from "@rails/domain";
 
 interface Station { tiploc: string; crs: string; name: string; lon: number; lat: number }
 
 interface Props {
   runs: LiveRun[];
+  now: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
   follow: boolean;
@@ -27,13 +28,13 @@ const TRAIN_COLOR: maplibregl.ExpressionSpecification = [
   "#91edb4"
 ];
 
-function toFeatures(runs: LiveRun[]) {
+function toFeatures(runs: LiveRun[], now: number) {
   return {
     type: "FeatureCollection" as const,
     features: runs.filter(run => run.coordinate).map(run => ({
       type: "Feature" as const,
       id: run.version,
-      properties: {runId: run.runId, code: run.providerRunId, delay: run.delaySeconds ?? 0},
+      properties: {runId: run.runId, code: run.providerRunId, delay: run.delaySeconds ?? 0, stale: freshness(run.observedAt, now) === "stale"},
       geometry: {type: "Point" as const, coordinates: run.coordinate as [number, number]}
     }))
   };
@@ -43,7 +44,7 @@ function toFeatures(runs: LiveRun[]) {
  * Una capa WebGL en lugar de un marcador DOM por tren: el feed nacional entrega
  * miles de circulaciones y el DOM no sostiene ese volumen.
  */
-export default function RailMap({runs, selectedId, onSelect, follow, showStations, zoomAction}: Props) {
+export default function RailMap({runs, now, selectedId, onSelect, follow, showStations, zoomAction}: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | null>(null);
   const selectRef = useRef(onSelect);
@@ -98,7 +99,9 @@ export default function RailMap({runs, selectedId, onSelect, follow, showStation
         paint: {"circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 6, 12, 14], "circle-color": TRAIN_COLOR, "circle-opacity": 0.14}});
       map.addLayer({id: "train-dot", type: "circle", source: "trains",
         paint: {"circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2.6, 12, 6],
-                "circle-color": TRAIN_COLOR, "circle-stroke-width": 0.6, "circle-stroke-color": "#0c1512"}});
+                "circle-color": TRAIN_COLOR, "circle-stroke-width": 0.6, "circle-stroke-color": "#0c1512",
+                // Sin señal reciente: se muestra, atenuada, en vez de desaparecer sin aviso.
+                "circle-opacity": ["case", ["get", "stale"], 0.35, 1]}});
       map.addLayer({id: "train-selected", type: "circle", source: "trains", filter: ["==", ["get", "runId"], ""],
         paint: {"circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 7, 12, 15], "circle-color": "rgba(0,0,0,0)",
                 "circle-stroke-width": 1.8, "circle-stroke-color": "#d8fbe4"}});
@@ -122,8 +125,8 @@ export default function RailMap({runs, selectedId, onSelect, follow, showStation
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    (map.getSource("trains") as maplibregl.GeoJSONSource | undefined)?.setData(toFeatures(runs));
-  }, [ready, runs]);
+    (map.getSource("trains") as maplibregl.GeoJSONSource | undefined)?.setData(toFeatures(runs, now));
+  }, [ready, runs, now]);
 
   useEffect(() => {
     const map = mapRef.current;

@@ -6,7 +6,7 @@ Central ferroviaria experimental con Next.js, shadcn/ui, MapLibre y una base de 
 
 Central de operaciones sobre **datos reales** de Network Rail. El feed MOVEMENT se ingiere, se proyecta y se sirve al navegador: snapshot inicial y cambios en vivo por SSE, con el mapa dibujando las posiciones reportadas sobre capas WebGL.
 
-Límites que la propia interfaz declara: son **reportes de paso por ubicaciones, no GPS**; las marcas de tiempo tienen **resolución de un minuto**; y alrededor de una cuarta parte de las circulaciones **no resuelve a una coordenada** y solo aparece en una lista aparte. No hay origen, destino ni headcode, que exigirían importar SCHEDULE. Nunca usar este proyecto para decisiones operativas o de viaje.
+Solo se sirven las circulaciones que han reportado en las últimas dos horas; las que llevan más de quince minutos sin señal se marcan como tales y se atenúan en el mapa. Más límites que la propia interfaz declara: son **reportes de paso por ubicaciones, no GPS**; las marcas de tiempo tienen **resolución de un minuto**; y alrededor de una cuarta parte de las circulaciones **no resuelve a una coordenada** y solo aparece en una lista aparte. No hay origen, destino ni headcode, que exigirían importar SCHEDULE. Nunca usar este proyecto para decisiones operativas o de viaje.
 
 ## Ejecutar
 
@@ -65,6 +65,21 @@ Una posición solo es `reported` cuando su STANOX resuelve a un punto único en 
 
 Dos limitaciones declaradas: la fecha de servicio se deriva de la fecha londinense del evento, así que un tren que cruce medianoche producirá dos circulaciones; y el headcode queda nulo porque la descomposición de `train_id` no está verificada.
 
+## Retención
+
+```sh
+npm run prune -- --dry-run
+npm run prune -- --days=7
+```
+
+Borra los eventos originales fuera de la ventana y las proyecciones que ya no se sirven. **Nunca borra por delante del cursor de proyección**: si la proyección va retrasada o está detenida, retiene los eventos en lugar de perderlos sin proyectar.
+
+Medido sobre datos reales: 1.229 bytes por fila y unos 210 eventos por minuto de captura, es decir del orden de 300.000 registros y **370 MB al día**. Con siete días son unos 2,6 GB.
+
+El coste de esta política es explícito: **más allá de la ventana no se puede reproyectar**. Esa capacidad es la que permite corregir la lógica y rehacer el estado, así que acortar la ventana tiene un precio real.
+
+El comando se ejecuta a mano. Programarlo es una decisión de operación, no de código.
+
 ## Ingesta persistente
 
 ```sh
@@ -81,7 +96,7 @@ Esta entrega solo escribe `raw_events`. No proyecta posiciones ni alimenta la in
 
 Con la base levantada y la proyección al día, el servidor de desarrollo expone:
 
-- `GET /api/snapshot`: estado completo, con una `version` que sirve de cursor.
+- `GET /api/snapshot`: circulaciones con reporte en las últimas dos horas, con una `version` que sirve de cursor.
 - `GET /api/stations`: estaciones con coordenada, para la capa de contexto.
 - `GET /api/stream`: cambios por SSE. Acepta `?since=<version>` y respeta la cabecera `Last-Event-ID`, así que una reconexión entrega solo lo posterior.
 

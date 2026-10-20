@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { Activity, Check, Clock3, Crosshair, Database, Focus, Layers3, MapPin, Minus, Plus, Radio, RotateCcw, Search, Settings2, TrainFront, X } from "lucide-react";
-import type { LiveRun } from "@rails/domain";
+import { freshness, type LiveRun } from "@rails/domain";
 import { useLiveRuns, type ConnectionState } from "@/lib/use-live-runs";
 
 const RailMap = dynamic(() => import("./rail-map"), {ssr: false, loading: () => <div className="map-loading"><Radio size={26}/><span>Preparando el mapa de operaciones…</span></div>});
@@ -31,7 +31,7 @@ const CONNECTION: Record<ConnectionState, string> = {
 };
 
 export function Monitor() {
-  const {runs, connection, updatedAt} = useLiveRuns();
+  const {runs, connection, updatedAt, now} = useLiveRuns();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [operator, setOperator] = useState("all");
@@ -63,18 +63,19 @@ export function Monitor() {
   const delayed = runs.filter(run => (run.delaySeconds ?? 0) > 0).length;
   const onTime = runs.filter(run => run.delaySeconds === 0).length;
   const withoutPosition = runs.filter(run => !run.coordinate).length;
+  const stale = runs.filter(run => freshness(run.observedAt, now) === "stale").length;
   const percent = (value: number) => runs.length ? value / runs.length * 100 : 0;
   const zoom = (type: "in" | "out" | "reset") => {setFollow(false); setZoomAction({type, key: Date.now()});};
 
   const row = (run: LiveRun) => (
     <li key={run.runId}>
-      <button type="button" className={`train-row ${run.runId === selectedId ? "selected" : ""}`} onClick={() => setSelectedId(run.runId)} aria-pressed={run.runId === selectedId}>
+      <button type="button" className={`train-row ${run.runId === selectedId ? "selected" : ""} ${freshness(run.observedAt, now) === "stale" ? "stale" : ""}`} onClick={() => setSelectedId(run.runId)} aria-pressed={run.runId === selectedId}>
         <div className="train-row-top">
           <span className="service-code mono">{run.providerRunId}</span>
           <span className={`delay-tag ${delayTone(run.delaySeconds)}`}>{delayLabel(run.delaySeconds)}</span>
         </div>
         <div className="train-row-bottom">
-          <span>Operador {run.tocId ?? "—"}</span>
+          <span>{freshness(run.observedAt, now) === "stale" ? "Sin señal reciente" : `Operador ${run.tocId ?? "—"}`}</span>
           <span className="mono">{hhmm.format(new Date(run.observedAt))}</span>
         </div>
       </button>
@@ -141,7 +142,7 @@ export function Monitor() {
           </aside>
 
           <section className="map-panel">
-            <div className="map-canvas"><RailMap runs={positioned} selectedId={selectedId} onSelect={setSelectedId} follow={follow} showStations={showStations} zoomAction={zoomAction}/></div>
+            <div className="map-canvas"><RailMap runs={positioned} now={now} selectedId={selectedId} onSelect={setSelectedId} follow={follow} showStations={showStations} zoomAction={zoomAction}/></div>
             <div className="map-grid"/>
             <div className="map-top">
               <span className="map-title">POSICIONES REPORTADAS<span className="map-region">GRAN BRETAÑA</span></span>
@@ -157,14 +158,14 @@ export function Monitor() {
           </section>
 
           <aside className="inspector">
-            {selected ? <Inspector run={selected} follow={follow} onFollow={() => setFollow(value => !value)} onClose={() => setSelectedId(null)}/>
+            {selected ? <Inspector run={selected} now={now} follow={follow} onFollow={() => setFollow(value => !value)} onClose={() => setSelectedId(null)}/>
               : <div className="inspector-empty"><Activity size={22}/><h2>Sin selección</h2><p>Elige una circulación en la lista o toca un punto del mapa.</p></div>}
           </aside>
         </section>
 
         <footer className="statusbar">
           <span><i className="status-dot"/>Network Rail MOVEMENT · NaPTAN del Department for Transport · Open Government Licence v3.0</span>
-          <span>{positioned.length} en el mapa · {unpositioned.length} sin posición</span>
+          <span>{positioned.length} en el mapa · {unpositioned.length} sin posición · {stale} sin señal reciente</span>
         </footer>
       </div>
 
@@ -187,7 +188,8 @@ export function Monitor() {
   );
 }
 
-function Inspector({run, follow, onFollow, onClose}: {run: LiveRun; follow: boolean; onFollow: () => void; onClose: () => void}) {
+function Inspector({run, now, follow, onFollow, onClose}: {run: LiveRun; now: number; follow: boolean; onFollow: () => void; onClose: () => void}) {
+  const state = freshness(run.observedAt, now);
   return (
     <>
       <div className="inspector-heading">
@@ -203,7 +205,7 @@ function Inspector({run, follow, onFollow, onClose}: {run: LiveRun; follow: bool
         <span className="count-tag">{run.status === "terminated" ? "TERMINADO" : "EN CURSO"}</span>
       </div>
       <div className="detail-divider"/>
-      <div className="detail-section-title"><h3>Última posición</h3><span>{run.quality === "reported" ? "REPORTADA" : "SIN RESOLVER"}</span></div>
+      <div className="detail-section-title"><h3>Última posición</h3><span>{state === "stale" ? "SIN SEÑAL RECIENTE" : run.quality === "reported" ? "REPORTADA" : "SIN RESOLVER"}</span></div>
       <dl className="detail-journey">
         <div><dt>Coordenada</dt><dd className="mono">{run.coordinate ? `${run.coordinate[1].toFixed(4)}, ${run.coordinate[0].toFixed(4)}` : "—"}</dd></div>
         <div><dt>Observado</dt><dd className="mono">{hhmm.format(new Date(run.observedAt))} BST</dd></div>
@@ -212,7 +214,7 @@ function Inspector({run, follow, onFollow, onClose}: {run: LiveRun; follow: bool
       <button type="button" className={`follow-button ${follow ? "following" : ""}`} onClick={onFollow} disabled={!run.coordinate}>
         <Focus size={14}/>{follow ? "Dejar de seguir" : "Seguir en el mapa"}
       </button>
-      <div className="inspector-footer"><span>POSICIÓN DE ESTACIÓN</span><span>NO ES GPS</span></div>
+      <div className="inspector-footer"><span>POSICIÓN DE ESTACIÓN</span><span>{state === "stale" ? "DATO ENVEJECIDO" : "NO ES GPS"}</span></div>
     </>
   );
 }

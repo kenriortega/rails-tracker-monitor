@@ -99,3 +99,14 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - **Actualización en vivo sin recargar**: con el consumidor y la proyección en marcha, la página pasó por sí sola de 1.202 a 1.224 circulaciones, y de 866 a 883 en el mapa, coincidiendo exactamente con lo que devolvió la proyección.
 - Un error propio durante la verificación: el primer intento de maquetado no respetaba la estructura que espera la hoja de estilos —el contenedor de tres columnas es `.operations`, no `.map-grid`— y la página salió superpuesta. Se corrigió ajustando el componente a las clases existentes.
 - Fuera de alcance: autenticación, límite de conexiones, `stale`, interpolación, y origen, destino y headcode.
+
+## Entrega de retención y frescura
+
+- Cuarenta y tres pruebas, revisión de tipos y `npm run build` satisfactorios. Cinco nuevas cubren la clasificación de frescura, incluidos los límites, las marcas por delante de la recepción y las fechas ilegibles.
+- Medidas que motivan la política: 1.229 bytes por fila de `raw_events` y 210,6 eventos por minuto de captura, es decir del orden de 300.000 registros y 370 MB diarios. Huecos entre reportes consecutivos de un mismo tren: p50 de 2 minutos y p90 de 5. **El p99 de 133 minutos no es fiable**: la captura fue intermitente y la cola está contaminada por nuestros propios huecos.
+- Problema corregido: la vista en vivo acumulaba circulaciones indefinidamente. De 1.224 servidas, 974 no reportaban desde hacía más de dos horas.
+- Ventana de servicio verificada: la base tenía 1.224 posiciones, 250 dentro de dos horas, y la API sirvió exactamente 250.
+- En el navegador: 250 circulaciones, 153 en el mapa, 97 sin posición y 201 marcadas sin señal reciente, etiquetadas en la lista y atenuadas en el mapa.
+- Migración `0006` aplicada: índices sobre `raw_events.received_at` y `train_positions.observed_at`. Siete migraciones registradas.
+- Guardado por cursor verificado en ambos sentidos con filas sintéticas de diez días: con el cursor atrasado veinte días, las tres quedaron retenidas y cero borrables; con el cursor al día, las tres pasaron a borrables. La poda real eliminó esas tres y dejó intactas las 2.106 legítimas. El montaje de prueba se deshizo.
+- Fuera de alcance: archivado en frío, particionado y cualquier programación periódica de la poda.

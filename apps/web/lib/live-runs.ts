@@ -1,6 +1,6 @@
 import "server-only";
 import { sql } from "drizzle-orm";
-import type { LiveRun } from "@rails/domain";
+import { SERVE_SECONDS, type LiveRun } from "@rails/domain";
 import { database } from "./database";
 
 /**
@@ -19,6 +19,10 @@ export async function liveRuns(since = 0, limit = 5000): Promise<LiveRun[]> {
     from train_positions p
     join service_runs r on r.id = p.run_id
     where p.version > ${since}
+      -- Fuera de la ventana no se sirve: la vista acumulaba circulaciones que
+      -- dejaron de reportar hace horas. El cliente también las caduca por su
+      -- cuenta, porque envejecer no genera una versión nueva que empujar.
+      and p.observed_at > now() - make_interval(secs => ${SERVE_SECONDS})
     order by p.version
     limit ${limit}`);
   return result.rows as unknown as LiveRun[];

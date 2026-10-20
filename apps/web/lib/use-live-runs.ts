@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Delta, LiveRun, Snapshot } from "@rails/domain";
+import { freshness, type Delta, type LiveRun, type Snapshot } from "@rails/domain";
 
 export type ConnectionState = "connecting" | "live" | "reconnecting" | "failed";
 
@@ -10,7 +10,13 @@ export interface LiveData {
   connection: ConnectionState;
   /** Instante del último cambio aplicado, no de la última comprobación. */
   updatedAt: number | null;
+  /** Reloj compartido para clasificar frescura sin recalcularlo en cada fila. */
+  now: number;
 }
+
+// Envejecer no produce una versión nueva, así que el servidor no puede avisar de
+// que una circulación caducó: el cliente la retira por su cuenta.
+const EXPIRY_TICK_MS = 20_000;
 
 /**
  * Carga el snapshot y después aplica los deltas que llegan por SSE.
@@ -22,7 +28,21 @@ export function useLiveRuns(): LiveData {
   const [runs, setRuns] = useState<LiveRun[]>([]);
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const byId = useRef(new Map<string, LiveRun>());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const instant = Date.now();
+      let dropped = false;
+      for (const [id, run] of byId.current) {
+        if (freshness(run.observedAt, instant) === "expired") { byId.current.delete(id); dropped = true; }
+      }
+      if (dropped) setRuns([...byId.current.values()]);
+      setNow(instant);
+    }, EXPIRY_TICK_MS);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,5 +78,5 @@ export function useLiveRuns(): LiveData {
     return () => { cancelled = true; source?.close(); };
   }, []);
 
-  return {runs, connection, updatedAt};
+  return {runs, connection, updatedAt, now};
 }

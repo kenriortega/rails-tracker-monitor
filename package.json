@@ -12,6 +12,7 @@
     "ingest": "npm run start -w @rails/ingestor",
     "import:naptan": "npm run import:naptan -w @rails/ingestor --",
     "project": "npm run project -w @rails/ingestor --",
+    "prune": "npm run prune -w @rails/ingestor --",
     "db:generate": "npm run generate -w @rails/db",
     "db:migrate": "npm run migrate -w @rails/db"
   },

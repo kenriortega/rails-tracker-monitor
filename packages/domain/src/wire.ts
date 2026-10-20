@@ -10,6 +10,8 @@ export interface LiveRun {
   serviceDate: string;
   status: string;
   delaySeconds: number | null;
+  /** Código de operador de TRUST; nulo cuando el mensaje no lo trae. */
+  tocId: string | null;
   quality: PositionQuality;
   /** Nula cuando la ubicación no resuelve o resuelve a puntos distintos. */
   coordinate: [longitude: number, latitude: number] | null;

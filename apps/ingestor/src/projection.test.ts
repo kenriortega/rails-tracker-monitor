@@ -44,6 +44,12 @@ test("without a usable timestamp the reception time dates the run", () => {
   assert.equal(projected?.serviceDate, "2026-10-19");
 });
 
+test("the operator code is carried through when present", () => {
+  assert.equal(projectMovement(movement({train_id: "A", toc_id: "23"}), RECEIVED)?.tocId, "23");
+  assert.equal(projectMovement(movement({train_id: "A"}), RECEIVED)?.tocId, null);
+  assert.equal(projectMovement(movement({train_id: "A", toc_id: ""}), RECEIVED)?.tocId, null);
+});
+
 test("termination and renumbering are carried through", () => {
   const terminated = projectMovement(movement({train_id: "A", train_terminated: "true"}), RECEIVED);
   assert.equal(terminated?.status, "terminated");

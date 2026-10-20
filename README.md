@@ -4,9 +4,9 @@ Central ferroviaria experimental con Next.js, shadcn/ui, MapLibre y una base de 
 
 ## Entrega actual
 
-Prototipo local de operaciones: ocho servicios sintéticos, tres corredores esquemáticos, búsqueda, filtros de operador y estado, selección en lista/mapa, seguimiento de cámara, capas de estaciones y reproducción de 30 minutos. El motor está en el navegador; no es streaming real ni historial de producción. Los eventos del panel son narrativos del escenario.
+Central de operaciones sobre **datos reales** de Network Rail. El feed MOVEMENT se ingiere, se proyecta y se sirve al navegador: snapshot inicial y cambios en vivo por SSE, con el mapa dibujando las posiciones reportadas sobre capas WebGL.
 
-Todos los servicios, horarios y retrasos son inventados. Las coordenadas de estaciones son aproximadas; las líneas unen estaciones y **no son geometría real de las vías**. Nunca usar esta demo para decisiones operativas o de viaje.
+Límites que la propia interfaz declara: son **reportes de paso por ubicaciones, no GPS**; las marcas de tiempo tienen **resolución de un minuto**; y alrededor de una cuarta parte de las circulaciones **no resuelve a una coordenada** y solo aparece en una lista aparte. No hay origen, destino ni headcode, que exigirían importar SCHEDULE. Nunca usar este proyecto para decisiones operativas o de viaje.
 
 ## Ejecutar
 
@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Abrir http://127.0.0.1:3000. No se requiere PostgreSQL ni una cuenta Network Rail para esta demo. El mapa base descarga teselas vectoriales de OpenFreeMap/OpenStreetMap: necesita conexión a internet. Si falla, los trazados de demostración siguen disponibles sobre fondo oscuro; si WebGL no está disponible, permanecen la lista y el inspector. Se usa Webpack porque Turbopack no pudo iniciar sus procesos locales en el entorno de desarrollo inicial.
+Abrir http://127.0.0.1:3000. La interfaz **requiere la base levantada y datos proyectados**: ver las secciones siguientes. El mapa base descarga teselas vectoriales de OpenFreeMap/OpenStreetMap: necesita conexión a internet. Si falla, los trazados de demostración siguen disponibles sobre fondo oscuro; si WebGL no está disponible, permanecen la lista y el inspector. Se usa Webpack porque Turbopack no pudo iniciar sus procesos locales en el entorno de desarrollo inicial.
 
 ```sh
 npm run typecheck
@@ -82,6 +82,7 @@ Esta entrega solo escribe `raw_events`. No proyecta posiciones ni alimenta la in
 Con la base levantada y la proyección al día, el servidor de desarrollo expone:
 
 - `GET /api/snapshot`: estado completo, con una `version` que sirve de cursor.
+- `GET /api/stations`: estaciones con coordenada, para la capa de contexto.
 - `GET /api/stream`: cambios por SSE. Acepta `?since=<version>` y respeta la cabecera `Last-Event-ID`, así que una reconexión entrega solo lo posterior.
 
 Los cambios se empujan con `LISTEN/NOTIFY` de PostgreSQL: un trigger sobre `train_positions` avisa, y cada cliente consulta su propio delta desde su cursor. La notificación no lleva contenido a propósito; así, un aviso perdido durante una reconexión no pierde datos.

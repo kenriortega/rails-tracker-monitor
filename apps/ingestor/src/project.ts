@@ -38,10 +38,11 @@ async function projectPage(db: Database, totals: Totals): Promise<boolean> {
     totals.projected++;
 
     const run = await db.execute(sql`
-      insert into service_runs (provider, provider_run_id, service_date, status, delay_seconds)
-      values (${PROVIDER}, ${movement.providerRunId}, ${movement.serviceDate}, ${movement.status}, ${movement.delaySeconds})
+      insert into service_runs (provider, provider_run_id, service_date, status, delay_seconds, toc_id)
+      values (${PROVIDER}, ${movement.providerRunId}, ${movement.serviceDate}, ${movement.status}, ${movement.delaySeconds}, ${movement.tocId})
       on conflict (provider, service_date, provider_run_id) do update set
-        status = excluded.status, delay_seconds = coalesce(excluded.delay_seconds, service_runs.delay_seconds)
+        status = excluded.status, delay_seconds = coalesce(excluded.delay_seconds, service_runs.delay_seconds),
+        toc_id = coalesce(excluded.toc_id, service_runs.toc_id)
       returning id`);
     const runId = (run.rows[0] as {id: string}).id;
 

@@ -11,6 +11,7 @@ export interface MovementProjection {
   serviceDate: string;
   status: RunStatus;
   delaySeconds: number | null;
+  tocId: string | null;
   stanox: string | null;
   observedAt: Date;
   /** Identificador nuevo cuando la circulación se renumera; informativo por ahora. */
@@ -63,6 +64,7 @@ export function projectMovement(payload: unknown, receivedAt: Date): MovementPro
     serviceDate: londonServiceDate(observedAt),
     status: text(body.train_terminated).toLowerCase() === "true" ? "terminated" : "running",
     delaySeconds: delaySecondsFrom(body),
+    tocId: text(body.toc_id) || null,
     stanox: stanoxFrom(body),
     observedAt,
     renamedTo: current && current !== providerRunId ? current : null

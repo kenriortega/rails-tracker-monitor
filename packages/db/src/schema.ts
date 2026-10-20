@@ -19,7 +19,7 @@ export const schedules = pgTable("schedules", {
 export const serviceRuns = pgTable("service_runs", {
   id: uuid("id").defaultRandom().primaryKey(), provider: text("provider").notNull(),
   providerRunId: text("provider_run_id").notNull(), serviceDate: date("service_date").notNull(),
-  scheduleId: uuid("schedule_id").references(() => schedules.id), headcode: text("headcode"),
+  scheduleId: uuid("schedule_id").references(() => schedules.id), headcode: text("headcode"), tocId: text("toc_id"),
   status: text("status").notNull(), delaySeconds: integer("delay_seconds"),
 }, table => [uniqueIndex("service_run_identity").on(table.provider, table.serviceDate, table.providerRunId)]);
 export const rawEvents = pgTable("raw_events", {

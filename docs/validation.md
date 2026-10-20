@@ -88,3 +88,14 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Entrega en vivo verificada con ingesta y proyección en marcha: cinco deltas empujados por `LISTEN/NOTIFY`, 239 entregas sin ningún duplicado, cursor siempre creciente y la cabecera `id:` igual al cursor en todos los casos.
 - Conciliación sin pérdidas: esas 239 entregas corresponden a 194 circulaciones distintas, exactamente las 194 filas que la base tenía por encima del cursor inicial. Las 45 entregas extra son 40 circulaciones actualizadas más de una vez, es decir estados sucesivos.
 - Fuera de alcance: la interfaz, que sigue en modo demo, la autenticación y cualquier límite de conexiones.
+
+## Entrega de la interfaz en vivo
+
+- Treinta y ocho pruebas, revisión de tipos y `npm run build` satisfactorios. Las tres rutas de API quedan dinámicas.
+- Migración `0005` aplicada: columna `toc_id` en `service_runs`, que recupera el filtro de operador. Reproyección completa: 1.202 circulaciones, todas con operador, 38 operadores distintos.
+- Verificado en el navegador a 1440 píxeles: métricas, lista, mapa, inspector y barra de estado en su sitio. El mapa dibuja el trazado reconocible de la red británica a partir de las propias posiciones.
+- Selección comprobada: al elegir una circulación el inspector muestra identificador, operador, retraso, estado, calidad, coordenada, hora observada y fecha de servicio.
+- Las circulaciones sin posición aparecen en un grupo aparte de la lista, con su recuento, y **no se dibujan en el mapa**.
+- **Actualización en vivo sin recargar**: con el consumidor y la proyección en marcha, la página pasó por sí sola de 1.202 a 1.224 circulaciones, y de 866 a 883 en el mapa, coincidiendo exactamente con lo que devolvió la proyección.
+- Un error propio durante la verificación: el primer intento de maquetado no respetaba la estructura que espera la hoja de estilos —el contenedor de tres columnas es `.operations`, no `.map-grid`— y la página salió superpuesta. Se corrigió ajustando el componente a las clases existentes.
+- Fuera de alcance: autenticación, límite de conexiones, `stale`, interpolación, y origen, destino y headcode.

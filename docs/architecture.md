@@ -4,6 +4,8 @@
 
 Monorepo npm con Next.js App Router en `apps/web`, TypeScript estricto y shadcn/ui (Button con Slot, CVA, utilidades clsx/tailwind-merge y configuración para añadir componentes). Tailwind 4 y CSS específico definen una identidad de central oscura con verde suave y acentos ámbar.
 
+El mapa dibuja las circulaciones como **capas WebGL sobre una fuente GeoJSON**, no como marcadores DOM. La estrategia DOM anterior servía para ocho trenes de demostración; el feed nacional entrega centenares a la vez y miles a lo largo del día, y el DOM no sostiene ese volumen. La selección se resuelve con los eventos de capa de MapLibre y el color por retraso con estilo dirigido por datos, que se evalúa en el GPU.
+
 MapLibre se carga exclusivamente en cliente. Las teselas vectoriales OpenFreeMap/OpenStreetMap, con un estilo oscuro local, aportan el contexto geográfico; las estaciones, corredores y trenes proceden de fixtures locales. MapLibre 6 requiere configurar explícitamente la URL de su worker; Next.js lo empaqueta como recurso local. Los ocho marcadores son elementos accesibles; no estamos proponiendo esta estrategia DOM para decenas de miles de vehículos. En ese volumen se sustituirán por capas WebGL y consultas por viewport.
 
 Se usa el compilador Webpack compatible con Next.js 16. Turbopack falló al abrir puertos internos bajo las restricciones del entorno. La compilación Webpack sí completó correctamente.
@@ -22,7 +24,7 @@ Los avisos llegan por `LISTEN/NOTIFY` con una única conexión de escucha por pr
 
 La tabla `raw_events` permite reconstrucción futura, pero no basta por sí sola: hacen falta versiones de la lógica, estados iniciales, referencias históricas y retención definida. Particionado y almacenamiento de archivo se decidirán después de medir el volumen. Redis/colas adicionales no se incorporan sin evidencia de necesidad.
 
-Existe un diagnóstico STOMP acotado en `apps/ingestor/src/diagnose.ts`, comprobado contra Network Rail. No se han implementado SSE, importadores completos, proyecciones ni alertas reales. El panel de fuentes y la barra inferior de la web continúan comunicando que esa interfaz usa demostración.
+Existe un diagnóstico STOMP acotado en `apps/ingestor/src/diagnose.ts`, comprobado contra Network Rail. No se han implementado SSE, importadores completos, proyecciones ni alertas reales. El panel de fuentes y la barra inferior comunican los límites reales de los datos: reportes de paso en lugar de GPS, resolución de un minuto, cobertura geográfica parcial y ausencia de horario.
 
 ## Revisión de dependencias
 

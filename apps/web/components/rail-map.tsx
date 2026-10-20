@@ -2,24 +2,61 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
-import type { Map as LibreMap, Marker } from "maplibre-gl";
-import { routes, trainCoordinate, trainColor, type DemoTrain } from "@rails/domain";
+import type { Map as LibreMap } from "maplibre-gl";
+import type { LiveRun } from "@rails/domain";
+
+interface Station { tiploc: string; crs: string; name: string; lon: number; lat: number }
 
 interface Props {
-  trains: DemoTrain[]; seconds: number; selectedId: string | null;
-  onSelect: (id: string) => void; follow: boolean; showStations: boolean;
+  runs: LiveRun[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  follow: boolean;
+  showStations: boolean;
   zoomAction: {type: "in" | "out" | "reset"; key: number} | null;
 }
 
-export default function RailMap({trains, seconds, selectedId, onSelect, follow, showStations, zoomAction}: Props) {
+const GB_BOUNDS: [[number, number], [number, number]] = [[-7.6, 49.9], [1.8, 58.7]];
+const FIT = {padding: {top: 70, bottom: 60, left: 50, right: 70}};
+
+/** Color por retraso; se resuelve en el GPU con estilo dirigido por datos. */
+const TRAIN_COLOR: maplibregl.ExpressionSpecification = [
+  "case",
+  [">=", ["coalesce", ["get", "delay"], 0], 600], "#ff8073",
+  [">", ["coalesce", ["get", "delay"], 0], 0], "#f4c76a",
+  "#91edb4"
+];
+
+function toFeatures(runs: LiveRun[]) {
+  return {
+    type: "FeatureCollection" as const,
+    features: runs.filter(run => run.coordinate).map(run => ({
+      type: "Feature" as const,
+      id: run.version,
+      properties: {runId: run.runId, code: run.providerRunId, delay: run.delaySeconds ?? 0},
+      geometry: {type: "Point" as const, coordinates: run.coordinate as [number, number]}
+    }))
+  };
+}
+
+/**
+ * Una capa WebGL en lugar de un marcador DOM por tren: el feed nacional entrega
+ * miles de circulaciones y el DOM no sostiene ese volumen.
+ */
+export default function RailMap({runs, selectedId, onSelect, follow, showStations, zoomAction}: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | null>(null);
-  const trainMarkers = useRef(new Map<string, {marker: Marker; button: HTMLButtonElement}>());
-  const stationMarkers = useRef<Marker[]>([]);
   const selectRef = useRef(onSelect);
   selectRef.current = onSelect;
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stations, setStations] = useState<Station[]>([]);
+
+  useEffect(() => {
+    fetch("/api/stations").then(response => response.json())
+      .then(data => setStations(data.stations as Station[]))
+      .catch(() => { /* el mapa funciona sin la capa de contexto */ });
+  }, []);
 
   useEffect(() => {
     if (!container.current) return;
@@ -27,7 +64,7 @@ export default function RailMap({trains, seconds, selectedId, onSelect, follow, 
     try {
       maplibregl.setWorkerUrl(new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).toString());
       map = new maplibregl.Map({
-        container: container.current, center: [-1.6, 52.3], zoom: 6,
+        container: container.current, center: [-2.6, 54.2], zoom: 5,
         minZoom: 4, maxZoom: 15, attributionControl: false, dragRotate: false, pitchWithRotate: false, touchPitch: false,
         style: {
           version: 8,
@@ -49,81 +86,70 @@ export default function RailMap({trains, seconds, selectedId, onSelect, follow, 
     mapRef.current = map;
     map.touchZoomRotate.disableRotation();
     map.addControl(new maplibregl.AttributionControl({compact: true}), "bottom-left");
-    map.on("error", event => {
-      if (event.error) setError("Mapa base no disponible. Se muestran únicamente los trazados esquemáticos de la demo.");
-    });
+    map.on("error", event => { if (event.error) setError("Mapa base no disponible. Los trenes siguen dibujándose sobre el fondo oscuro."); });
+
     map.on("style.load", () => {
-      map.addSource("routes", {type: "geojson", data: {
-        type: "FeatureCollection", features: routes.map(route => ({type: "Feature", properties: {id: route.id, color: route.color}, geometry: {type: "LineString", coordinates: route.stations.map(station => station.coordinate)}}))
-      }});
-      map.addLayer({id: "route-glow", type: "line", source: "routes", paint: {"line-color": ["get", "color"], "line-width": 10, "line-opacity": 0.07, "line-blur": 4}});
-      map.addLayer({id: "route-line", type: "line", source: "routes", layout: {"line-join": "round", "line-cap": "round"}, paint: {"line-color": ["get", "color"], "line-width": 1.7, "line-opacity": 0.6}});
-      map.addLayer({id: "route-selected", type: "line", source: "routes", filter: ["==", "id", ""], layout: {"line-join": "round"}, paint: {"line-color": "#d8fbe4", "line-width": 2.5, "line-opacity": 0.9}});
-      const stations = new Map(routes.flatMap(route => route.stations).map(station => [station.id, station]));
-      for (const station of stations.values()) {
-        const element = document.createElement("div");
-        element.className = "station-marker";
-        const dot = document.createElement("i");
-        const label = document.createElement("span");
-        label.textContent = station.name.replace("London ", "");
-        element.append(dot, label);
-        const marker = new maplibregl.Marker({element, anchor: "left"}).setLngLat(station.coordinate).addTo(map);
-        stationMarkers.current.push(marker);
-      }
-      map.fitBounds([[-2.8, 51.30], [-0.02, 53.65]], {padding: {top: 80, bottom: 60, left: 50, right: 80}, duration: 0});
+      map.addSource("stations", {type: "geojson", data: {type: "FeatureCollection", features: []}});
+      map.addLayer({id: "station-dot", type: "circle", source: "stations",
+        paint: {"circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 1.2, 12, 3], "circle-color": "#6f8f7a", "circle-opacity": 0.55}});
+
+      map.addSource("trains", {type: "geojson", data: {type: "FeatureCollection", features: []}});
+      map.addLayer({id: "train-halo", type: "circle", source: "trains",
+        paint: {"circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 6, 12, 14], "circle-color": TRAIN_COLOR, "circle-opacity": 0.14}});
+      map.addLayer({id: "train-dot", type: "circle", source: "trains",
+        paint: {"circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2.6, 12, 6],
+                "circle-color": TRAIN_COLOR, "circle-stroke-width": 0.6, "circle-stroke-color": "#0c1512"}});
+      map.addLayer({id: "train-selected", type: "circle", source: "trains", filter: ["==", ["get", "runId"], ""],
+        paint: {"circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 7, 12, 15], "circle-color": "rgba(0,0,0,0)",
+                "circle-stroke-width": 1.8, "circle-stroke-color": "#d8fbe4"}});
+
+      map.on("click", "train-dot", event => {
+        const feature = event.features?.[0];
+        if (feature) selectRef.current(String(feature.properties?.runId));
+      });
+      map.on("mouseenter", "train-dot", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "train-dot", () => { map.getCanvas().style.cursor = ""; });
+
+      map.fitBounds(GB_BOUNDS, {...FIT, duration: 0});
       setReady(true);
     });
+
     const resize = new ResizeObserver(() => map.resize());
     resize.observe(container.current);
-    return () => {
-      resize.disconnect();
-      trainMarkers.current.forEach(({marker}) => marker.remove());
-      trainMarkers.current.clear();
-      stationMarkers.current.forEach(marker => marker.remove());
-      stationMarkers.current = [];
-      map.remove(); mapRef.current = null;
-    };
+    return () => { resize.disconnect(); map.remove(); mapRef.current = null; };
   }, []);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    const visible = new Set(trains.map(train => train.id));
-    trainMarkers.current.forEach(({marker}, id) => {
-      if (!visible.has(id)) {marker.remove(); trainMarkers.current.delete(id);}
-    });
-    for (const train of trains) {
-      const route = routes.find(route => route.id === train.routeId)!;
-      const point = trainCoordinate(train, route, seconds);
-      if (!point) continue;
-      let entry = trainMarkers.current.get(train.id);
-      if (!entry) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "train-marker";
-        button.setAttribute("aria-label", `Seleccionar tren ${train.headcode}`);
-        const icon = document.createElement("span"); icon.className = "train-marker-dot";
-        const label = document.createElement("span"); label.className = "train-marker-code"; label.textContent = train.headcode;
-        button.append(icon, label);
-        button.addEventListener("click", () => selectRef.current(train.id));
-        entry = {button, marker: new maplibregl.Marker({element: button, anchor: "left"}).setLngLat(point).addTo(map)};
-        trainMarkers.current.set(train.id, entry);
-      }
-      entry.marker.setLngLat(point);
-      entry.button.style.setProperty("--train-color", trainColor(train));
-      entry.button.classList.toggle("selected", train.id === selectedId);
-      entry.button.setAttribute("aria-pressed", String(train.id === selectedId));
-    }
-    const selected = trains.find(train => train.id === selectedId);
-    map.setFilter("route-selected", ["==", "id", selected?.routeId ?? ""]);
-    if (follow && selected) {
-      const point = trainCoordinate(selected, routes.find(route => route.id === selected.routeId)!, seconds);
-      if (point) map.easeTo({center: point, zoom: Math.max(map.getZoom(), 8), duration: 700});
-    }
-  }, [ready, trains, seconds, selectedId, follow]);
+    (map.getSource("trains") as maplibregl.GeoJSONSource | undefined)?.setData(toFeatures(runs));
+  }, [ready, runs]);
 
   useEffect(() => {
-    stationMarkers.current.forEach(marker => {marker.getElement().style.visibility = showStations ? "visible" : "hidden";});
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    (map.getSource("stations") as maplibregl.GeoJSONSource | undefined)?.setData({
+      type: "FeatureCollection",
+      features: stations.map(station => ({
+        type: "Feature", properties: {name: station.name},
+        geometry: {type: "Point", coordinates: [station.lon, station.lat]}
+      }))
+    });
+  }, [ready, stations]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    map.setFilter("train-selected", ["==", ["get", "runId"], selectedId ?? ""]);
+    if (!follow || !selectedId) return;
+    const selected = runs.find(run => run.runId === selectedId);
+    if (selected?.coordinate) map.easeTo({center: selected.coordinate, zoom: Math.max(map.getZoom(), 9), duration: 700});
+  }, [ready, selectedId, follow, runs]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    map.setLayoutProperty("station-dot", "visibility", showStations ? "visible" : "none");
   }, [showStations, ready]);
 
   useEffect(() => {
@@ -131,8 +157,8 @@ export default function RailMap({trains, seconds, selectedId, onSelect, follow, 
     if (!map || !ready || !zoomAction) return;
     if (zoomAction.type === "in") map.zoomIn();
     else if (zoomAction.type === "out") map.zoomOut();
-    else map.fitBounds([[-2.8, 51.30], [-0.02, 53.65]], {padding: {top: 80, bottom: 60, left: 50, right: 80}, duration: 700});
+    else map.fitBounds(GB_BOUNDS, {...FIT, duration: 700});
   }, [zoomAction, ready]);
 
-  return <><div ref={container} className="map-canvas" role="region" aria-label="Mapa ferroviario interactivo de demostración" />{error && <div className="map-error" role="status">{error}</div>}</>;
+  return <><div ref={container} className="map-canvas" role="region" aria-label="Mapa de circulaciones en vivo" />{error && <div className="map-error" role="status">{error}</div>}</>;
 }

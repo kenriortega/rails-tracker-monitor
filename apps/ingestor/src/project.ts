@@ -3,14 +3,14 @@ import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
 import { createDatabase } from "@rails/db";
 import { MOVEMENT_FEED } from "./records";
-import { PROVIDER, projectMovement } from "./projection";
+import { PROVIDER, projectActivation, projectMovement } from "./projection";
 
 const CURSOR = "movement";
 const PAGE = 1000;
 
 type Database = ReturnType<typeof createDatabase>["db"];
 
-interface Totals { read: number; projected: number; skipped: number; positions: number; unresolved: number }
+interface Totals { read: number; projected: number; activations: number; skipped: number; positions: number; unresolved: number }
 
 /**
  * Pasada separada de la ingesta: lee raw_events con un cursor estable sobre
@@ -33,6 +33,30 @@ async function projectPage(db: Database, totals: Totals): Promise<boolean> {
 
   for (const event of events) {
     totals.read++;
+
+    const activation = projectActivation(event.payload, event.received_at);
+    if (activation) {
+      totals.activations++;
+      /**
+       * Una activación no debe degradar a un tren que ya circula: si la
+       * circulación existe, solo se completan los datos que falten y el estado
+       * se deja como está.
+       */
+      const run = await db.execute(sql`
+        insert into service_runs (provider, provider_run_id, service_date, status, toc_id, headcode)
+        values (${PROVIDER}, ${activation.providerRunId}, ${activation.serviceDate}, ${"activated"}, ${activation.tocId}, ${activation.headcode})
+        on conflict (provider, service_date, provider_run_id) do update set
+          toc_id = coalesce(service_runs.toc_id, excluded.toc_id),
+          headcode = coalesce(service_runs.headcode, excluded.headcode)
+        returning id`);
+      // Marcador sin coordenada: el tren se conoce, su posición todavía no.
+      await db.execute(sql`
+        insert into train_positions (run_id, point, quality, source, observed_at, received_at)
+        values (${(run.rows[0] as {id: string}).id}, null, ${"unknown"}, ${"TRUST"}, ${activation.observedAt}, ${event.received_at})
+        on conflict (run_id) do nothing`);
+      continue;
+    }
+
     const movement = projectMovement(event.payload, event.received_at);
     if (!movement) { totals.skipped++; continue; }
     totals.projected++;
@@ -133,14 +157,15 @@ async function main() {
     for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, stop);
 
     do {
-      const totals: Totals = {read: 0, projected: 0, skipped: 0, positions: 0, unresolved: 0};
+      const totals: Totals = {read: 0, projected: 0, activations: 0, skipped: 0, positions: 0, unresolved: 0};
       while (await projectPage(db, totals)) { /* siguiente página */ }
       const schedules = await linkSchedules(db);
       const state = await db.execute(sql`
         select (select count(*)::int from service_runs) as runs,
                (select count(*)::int from train_positions) as positions,
                (select count(*)::int from train_positions where quality = 'reported') as reported,
-               (select count(*)::int from train_positions where quality = 'unknown') as unknown`);
+               (select count(*)::int from train_positions where quality = 'unknown') as unknown,
+               (select count(*)::int from service_runs where status = 'activated') as activated`);
       console.info(JSON.stringify({at: new Date().toISOString(), step: "done", ...totals, state: state.rows[0], schedules}));
       if (everySeconds === null || stopping) break;
       await new Promise(resolve => setTimeout(resolve, everySeconds * 1000));

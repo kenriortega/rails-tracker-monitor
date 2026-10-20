@@ -99,7 +99,9 @@ El `train_id` de TRUST lleva el **headcode en las posiciones 3 a 6**. **Confirma
 
 El horario se enlaza por `train_uid` y fecha de inicio, **sin** el indicador STP. **`schedule_type` de la activación no es ese indicador**: sobre las 63 activaciones decía `O` donde el horario de esa fecha era `P`, y al revés. Por uid y fecha coincidieron 53 de 63 sin una sola ambigüedad. No se interpreta `schedule_type` mientras su significado no esté verificado.
 
-El enlace depende por completo de haber capturado la activación, que es el único mensaje con `train_uid` y se emite horas antes de la circulación. Con los datos actuales alcanza a **2 de 1.229 circulaciones**.
+La activación también crea circulación, con estado `activated` y una posición sin coordenada. Su fecha de servicio **no se deduce**: la da el feed en `tp_origin_timestamp`, que ya viene como fecha. Su `creation_timestamp` usa la misma codificación londinense que los movimientos, comprobado con una diferencia mediana de −3.598 segundos frente a la recepción. Una activación que llegue tarde no degrada a un tren que ya circula: solo completa los datos que falten.
+
+El enlace depende por completo de haber capturado la activación, que es el único mensaje con `train_uid` y se emite horas antes de la circulación. Proyectar las activaciones lo elevó de 6 a **134 circulaciones** enlazadas, porque la mayoría de los horarios conocidos corresponden a trenes que todavía no han salido.
 
 ## Operador
 

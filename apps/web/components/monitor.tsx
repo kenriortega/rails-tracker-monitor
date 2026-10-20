@@ -13,7 +13,7 @@ const RailMap = dynamic(() => import("./rail-map"), {ssr: false, loading: () => 
 // la lista se recorta, porque pintarlas en el DOM no añade información.
 const LIST_LIMIT = 120;
 
-type Filter = "all" | "delayed" | "early";
+type Filter = "all" | "delayed" | "early" | "scheduled";
 
 const hhmm = new Intl.DateTimeFormat("es-ES", {timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hour12: false});
 const hhmmss = new Intl.DateTimeFormat("es-ES", {hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false});
@@ -63,6 +63,7 @@ export function Monitor() {
       if (operator !== "all" && run.tocId !== operator) return false;
       if (filter === "delayed") return (run.delaySeconds ?? 0) > 0;
       if (filter === "early") return (run.delaySeconds ?? 0) < 0;
+      if (filter === "scheduled") return Boolean(run.origin || run.destination);
       return true;
       // Orden estable por identidad, no por hora del último reporte: ordenar por
       // hora rebarajaba la lista entera cada pocos segundos y el tren que
@@ -84,7 +85,7 @@ export function Monitor() {
   const delayed = runs.filter(run => (run.delaySeconds ?? 0) > 0).length;
   const onTime = runs.filter(run => run.delaySeconds === 0).length;
   const withoutPosition = runs.filter(run => !run.coordinate).length;
-  const stale = runs.filter(run => freshness(run.observedAt, now) === "stale").length;
+  const stale = runs.filter(run => run.status !== "activated" && freshness(run.observedAt, now) === "stale").length;
   const percent = (value: number) => runs.length ? value / runs.length * 100 : 0;
   const zoom = (type: "in" | "out" | "reset") => {setFollow(false); setZoomAction({type, key: Date.now()});};
 
@@ -96,7 +97,9 @@ export function Monitor() {
           <span className={`delay-tag ${delayTone(run.delaySeconds)}`}>{delayLabel(run.delaySeconds)}</span>
         </div>
         <div className="train-row-bottom">
-          <span>{freshness(run.observedAt, now) === "stale" ? "Sin señal reciente" : resolveOperator(run.tocId)?.label ?? "Operador desconocido"}</span>
+          <span>{run.status === "activated" ? "Activado · aún sin reportar"
+                 : freshness(run.observedAt, now) === "stale" ? "Sin señal reciente"
+                 : resolveOperator(run.tocId)?.label ?? "Operador desconocido"}</span>
           <span className="mono">{hhmm.format(new Date(run.observedAt))}</span>
         </div>
       </button>
@@ -144,6 +147,7 @@ export function Monitor() {
               <button type="button" className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>Todas</button>
               <button type="button" className={filter === "delayed" ? "active" : ""} onClick={() => setFilter("delayed")}>Con retraso</button>
               <button type="button" className={filter === "early" ? "active" : ""} onClick={() => setFilter("early")}>Adelantadas</button>
+          <button type="button" className={filter === "scheduled" ? "active" : ""} onClick={() => setFilter("scheduled")}>Con recorrido</button>
             </div>
             <label className="operator-filter"><Settings2 size={13}/>
               <select aria-label="Filtrar por operador" value={operator} onChange={event => setOperator(event.target.value)}>
@@ -223,10 +227,13 @@ function Inspector({run, now, trail, follow, onFollow, onClose}: {run: LiveRun; 
       </div>
       <div className="detail-status">
         <span className={`delay-tag ${delayTone(run.delaySeconds)}`}>{delayLabel(run.delaySeconds)}</span>
-        <span className="count-tag">{run.status === "terminated" ? "TERMINADO" : "EN CURSO"}</span>
+        <span className="count-tag">{run.status === "terminated" ? "TERMINADO" : run.status === "activated" ? "ACTIVADO" : "EN CURSO"}</span>
       </div>
       <div className="detail-divider"/>
-      <div className="detail-section-title"><h3>Última posición</h3><span>{state === "stale" ? "SIN SEÑAL RECIENTE" : run.quality === "reported" ? "REPORTADA" : "SIN RESOLVER"}</span></div>
+      <div className="detail-section-title"><h3>Última posición</h3><span>{
+        run.status === "activated" ? "AÚN SIN REPORTAR"
+        : state === "stale" ? "SIN SEÑAL RECIENTE"
+        : run.quality === "reported" ? "REPORTADA" : "SIN RESOLVER"}</span></div>
       <dl className="detail-journey">
         <div><dt>Coordenada</dt><dd className="mono">{run.coordinate ? `${run.coordinate[1].toFixed(4)}, ${run.coordinate[0].toFixed(4)}` : "—"}</dd></div>
         <div><dt>Observado</dt><dd className="mono">{hhmm.format(new Date(run.observedAt))} BST</dd></div>
@@ -268,7 +275,7 @@ function Inspector({run, now, trail, follow, onFollow, onClose}: {run: LiveRun; 
       ) : (
         <p className="map-caption-sub">{trail ? "Sin reportes anteriores dentro de la ventana." : "Cargando recorrido…"}</p>
       )}
-      <div className="inspector-footer"><span>POSICIÓN DE ESTACIÓN</span><span>{state === "stale" ? "DATO ENVEJECIDO" : "NO ES GPS"}</span></div>
+      <div className="inspector-footer"><span>POSICIÓN DE ESTACIÓN</span><span>{run.status === "activated" ? "PREVISTO, NO OBSERVADO" : state === "stale" ? "DATO ENVEJECIDO" : "NO ES GPS"}</span></div>
     </>
   );
 }

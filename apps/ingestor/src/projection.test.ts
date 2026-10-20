@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { delaySecondsFrom, projectMovement, stanoxFrom } from "./projection";
+import { delaySecondsFrom, projectActivation, projectMovement, stanoxFrom } from "./projection";
 
 const RECEIVED = new Date("2026-10-19T21:00:00.000Z");
 const movement = (body: Record<string, unknown>) => ({header: {msg_type: "0003"}, body});
@@ -62,4 +62,37 @@ test("termination and renumbering are carried through", () => {
   const renamed = projectMovement(movement({train_id: "A", current_train_id: "B"}), RECEIVED);
   assert.equal(renamed?.renamedTo, "B");
   assert.equal(projectMovement(movement({train_id: "A", current_train_id: "A"}), RECEIVED)?.renamedTo, null);
+});
+
+const activation = (body: Record<string, unknown>) => ({header: {msg_type: "0001"}, body});
+
+test("an activation yields a run dated by the feed, not by the event time", () => {
+  const projected = projectActivation(activation({
+    train_id: "725N79M919", tp_origin_timestamp: "2026-10-20", creation_timestamp: "1792463535000", toc_id: "25"
+  }), RECEIVED);
+  assert.equal(projected?.providerRunId, "725N79M919");
+  assert.equal(projected?.serviceDate, "2026-10-20");
+  assert.equal(projected?.headcode, "5N79");
+  assert.equal(projected?.tocId, "25");
+});
+
+test("the activation timestamp is decoded like any other London epoch", () => {
+  const projected = projectActivation(activation({
+    train_id: "A", tp_origin_timestamp: "2026-10-20", creation_timestamp: "1792463535000"
+  }), RECEIVED);
+  assert.equal(projected?.observedAt.getTime(), 1792463535000 - 3600000);
+});
+
+test("activations without a usable service date are skipped", () => {
+  assert.equal(projectActivation(activation({train_id: "A"}), RECEIVED), null);
+  assert.equal(projectActivation(activation({train_id: "A", tp_origin_timestamp: "no"}), RECEIVED), null);
+  assert.equal(projectActivation(activation({tp_origin_timestamp: "2026-10-20"}), RECEIVED), null);
+  assert.equal(projectActivation({header: {msg_type: "0003"}, body: {train_id: "A"}}, RECEIVED), null);
+});
+
+test("an unusable creation timestamp falls back to reception", () => {
+  const projected = projectActivation(activation({
+    train_id: "A", tp_origin_timestamp: "2026-10-20", creation_timestamp: "bad"
+  }), RECEIVED);
+  assert.equal(projected?.observedAt, RECEIVED);
 });

@@ -1,9 +1,9 @@
-import { headcodeFromTrainId, londonServiceDate } from "@rails/domain";
+import { headcodeFromTrainId, londonServiceDate, resolveLondonLocalEpoch } from "@rails/domain";
 import { observedAtFrom } from "./records";
 
 export const PROVIDER = "TRUST";
 
-export type RunStatus = "running" | "terminated";
+export type RunStatus = "activated" | "running" | "terminated";
 
 /** Lo que un reporte de movimiento aporta a la proyección, ya normalizado. */
 export interface MovementProjection {
@@ -70,5 +70,41 @@ export function projectMovement(payload: unknown, receivedAt: Date): MovementPro
     stanox: stanoxFrom(body),
     observedAt,
     renamedTo: current && current !== providerRunId ? current : null
+  };
+}
+
+/**
+ * Lo que aporta una activación. Son trenes previstos para hoy que todavía no
+ * han reportado posición: sin ellos solo se ven los que ya circulan, y su
+ * horario —origen, destino y paradas— ya se conoce.
+ */
+export interface ActivationProjection {
+  providerRunId: string;
+  /** La da el feed en `tp_origin_timestamp`; no se deduce de la hora del evento. */
+  serviceDate: string;
+  headcode: string | null;
+  tocId: string | null;
+  observedAt: Date;
+}
+
+export function projectActivation(payload: unknown, receivedAt: Date): ActivationProjection | null {
+  if (!payload || typeof payload !== "object") return null;
+  const record = payload as Record<string, unknown>;
+  const header = record.header as Record<string, unknown> | undefined;
+  const body = record.body as Record<string, unknown> | undefined;
+  if (!header || !body || String(header.msg_type) !== "0001") return null;
+
+  const providerRunId = text(body.train_id);
+  const serviceDate = text(body.tp_origin_timestamp);
+  if (!providerRunId || !/^\d{4}-\d{2}-\d{2}$/.test(serviceDate)) return null;
+
+  // `creation_timestamp` usa la misma codificación londinense que los movimientos.
+  const created = Number(text(body.creation_timestamp));
+  const resolved = Number.isFinite(created) && created > 0 ? resolveLondonLocalEpoch(created) : null;
+  return {
+    providerRunId, serviceDate,
+    headcode: headcodeFromTrainId(providerRunId),
+    tocId: text(body.toc_id) || null,
+    observedAt: resolved?.utc != null ? new Date(resolved.utc) : receivedAt
   };
 }

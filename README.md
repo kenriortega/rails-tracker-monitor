@@ -6,6 +6,8 @@ Central ferroviaria experimental con Next.js, shadcn/ui, MapLibre y una base de 
 
 Central de operaciones sobre **datos reales** de Network Rail. El feed MOVEMENT se ingiere, se proyecta y se sirve al navegador: snapshot inicial y cambios en vivo por SSE, con el mapa dibujando las posiciones reportadas sobre capas WebGL.
 
+También se proyectan las **activaciones**: trenes previstos para hoy que aún no han reportado posición. Aparecen con estado «activado» y con su recorrido según horario, pero sin punto en el mapa. Sin ellos solo se verían los que ya circulan, y su horario ya se conoce.
+
 Al seleccionar una circulación se dibuja **por dónde ha pasado**, reconstruido desde `raw_events`. `train_positions` guarda solo la posición actual, así que el recorrido no está proyectado: se deriva de los eventos y por tanto solo alcanza hasta donde llegue la retención. La línea es discontinua a propósito, porque une puntos reportados y **no sigue la vía**; además salta por encima de las ubicaciones que no resuelven a coordenada, que son mayoría en cruces y bucles.
 
 Solo se sirven las circulaciones que han reportado en las últimas dos horas; las que llevan más de quince minutos sin señal se marcan como tales y se atenúan en el mapa. Más límites que la propia interfaz declara: son **reportes de paso por ubicaciones, no GPS**; las marcas de tiempo tienen **resolución de un minuto**; y alrededor de una cuarta parte de las circulaciones **no resuelve a una coordenada** y solo aparece en una lista aparte. El headcode se extrae del identificador de circulación. Origen y destino dependen del horario, enlazado en una fracción mínima de los trenes. Nunca usar este proyecto para decisiones operativas o de viaje.

@@ -154,3 +154,14 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Verificado en el navegador: la lista muestra «Great Western Railway» y el filtro ofrece «TransPennine Express», «Greater Anglia» y «Northern». Los `toc_id` sin derivar siguen mostrando su número, que corresponde sobre todo a mercancías.
 - **Hallazgo adicional de valor:** el mismo cruce confirma el headcode contra `signalling_id` de SCHEDULE en 117 de 118 casos. Eso cierra la duda que quedaba anotada, porque antes la evidencia venía de dos campos del propio TRUST. Queda una discrepancia sin explicar.
 - Un choque de nombres lo atrapó el compilador: la función importada `operator` colisionaba con el estado del filtro.
+
+## Entrega de activaciones proyectadas
+
+- Sesenta pruebas, revisión de tipos y `npm run build` satisfactorios. Cuatro nuevas cubren la fecha dada por el feed, la decodificación londinense de `creation_timestamp`, las activaciones sin fecha utilizable y el repliegue a la hora de recepción.
+- Motivo: solo 5 de 394 circulaciones servidas tenían recorrido, mientras **122 trenes con horario conocido no se mostraban** por no haber reportado posición todavía.
+- Tras proyectar las activaciones: 141 circulaciones en estado `activated` y las enlazadas a horario pasan de 6 a **134**. La API sirve 88 con origen y destino.
+- La fecha de servicio de una activación no se deduce de la hora del evento: la da `tp_origin_timestamp` como fecha, lo que elimina para este caso el riesgo de duplicar circulaciones en el cambio de día.
+- Comprobado que `creation_timestamp` usa la misma codificación londinense que los movimientos: diferencia mediana de −3.598 segundos frente a la recepción, con un rango de solo cinco segundos.
+- Verificado en el navegador: el filtro «Con recorrido» deja 88 circulaciones, las filas dicen «Activado · aún sin reportar» y el inspector muestra origen y destino según horario.
+- Fallo de etiquetado propio, visto al probarlo: un tren activado aparecía como «sin señal reciente» cuando en realidad nunca había reportado. Corregido a «aún sin reportar», y la métrica de señal perdida ya no los cuenta.
+- **Pendiente:** una activación desaparece de la vista dos horas después de emitirse aunque el tren no haya salido, porque la ventana de servicio mide antigüedad del último reporte. Para los activados debería medirse contra su fecha de servicio.

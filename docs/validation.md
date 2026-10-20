@@ -129,3 +129,13 @@ Informe de ejecución: `network-rail-diagnostic.json`. Las credenciales y los me
 - Primera evidencia de que el enlace con el horario mejora con captura continua: en esos minutos pasó de 2 a 3 circulaciones enlazadas. Es una señal, no una medida; hace falta un día completo para cuantificarla.
 - **La poda no se ejecuta sola.** Con ingesta permanente, `npm run prune` debe lanzarse periódicamente o la base crecerá del orden de 370 MB diarios. Programarlo sigue siendo una decisión de operación.
 - Pendiente de medir con un día completo: la tasa real de enlace con el horario, hoy del 0,16 %, y el umbral de frescura, cuyos quince minutos salen de una distribución contaminada por capturas intermitentes.
+
+## Entrega del recorrido
+
+- Cincuenta y dos pruebas, revisión de tipos y `npm run build` satisfactorios. La ruta `/api/runs/[runId]/trail` aparece como dinámica en el informe de compilación.
+- Origen del trabajo: en la interfaz no se apreciaba el movimiento. El diagnóstico fue que los datos sí lo contienen —213 de 444 trenes reportaron desde más de una ubicación en dos horas— pero `train_positions` tiene una fila por circulación y cada reporte sobrescribe al anterior, así que no había historial que dibujar.
+- Migración `0007`: índice por `train_id` sobre el JSON de `raw_events`. Sin él la consulta del recorrido recorrería la tabla entera.
+- Verificado en el navegador con la circulación 3S59: el inspector lista «Por dónde ha pasado, 10 de 14» con estaciones, tipo de evento y hora, y el mapa dibuja la línea discontinua con sus puntos.
+- **La cobertura geográfica se ve con crudeza aquí.** Un recorrido de 13 reportes dio solo 2 puntos dibujables en una prueba: el resto eran cruces sin coordenada. La línea los salta, y la interfaz lo declara.
+- Un fallo propio lo atrapó el compilador antes de ejecutar nada: en los puntos del rastro se pasaba el array completo de coordenadas en lugar de cada coordenada.
+- Corregida una ineficiencia introducida en esta misma entrega: el recorrido se recargaba con cada delta del feed; ahora solo cuando la circulación seleccionada cambia de versión.

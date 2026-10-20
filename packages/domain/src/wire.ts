@@ -35,3 +35,24 @@ export interface Delta {
   version: number;
   runs: LiveRun[];
 }
+
+/**
+ * Un punto por el que la circulación ya pasó, reconstruido desde los eventos
+ * originales. `coordinate` es nula cuando la ubicación no resuelve, que ocurre
+ * sobre todo en cruces y bucles: el recorrido queda con huecos reales.
+ */
+export interface TrailPoint {
+  observedAt: string;
+  stanox: string;
+  name: string | null;
+  coordinate: [longitude: number, latitude: number] | null;
+  eventType: string | null;
+}
+
+export interface Trail {
+  runId: string;
+  /** Puntos reportados en orden, incluidos los que no resuelven a coordenada. */
+  points: TrailPoint[];
+  reported: number;
+  withCoordinate: number;
+}

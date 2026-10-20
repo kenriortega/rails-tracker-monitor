@@ -3,8 +3,9 @@
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { Activity, Check, Clock3, Crosshair, Database, Focus, Layers3, MapPin, Minus, Plus, Radio, RotateCcw, Search, Settings2, TrainFront, X } from "lucide-react";
-import { freshness, type LiveRun } from "@rails/domain";
+import { freshness, type LiveRun, type Trail } from "@rails/domain";
 import { useLiveRuns, type ConnectionState } from "@/lib/use-live-runs";
+import { useTrail } from "@/lib/use-trail";
 
 const RailMap = dynamic(() => import("./rail-map"), {ssr: false, loading: () => <div className="map-loading"><Radio size={26}/><span>Preparando el mapa de operaciones…</span></div>});
 
@@ -32,10 +33,15 @@ const CONNECTION: Record<ConnectionState, string> = {
 
 export function Monitor() {
   const {runs, connection, updatedAt, now} = useLiveRuns();
+  const [selectedId, setSelectedIdState] = useState<string | null>(null);
+  // La versión de la circulación seleccionada: el recorrido solo se recarga
+  // cuando ese tren se mueve, no con cada delta del feed.
+  const selectedVersion = runs.find(run => run.runId === selectedId)?.version ?? 0;
+  const trail = useTrail(selectedId, selectedVersion);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [operator, setOperator] = useState("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const setSelectedId = setSelectedIdState;
   const [follow, setFollow] = useState(false);
   const [showStations, setShowStations] = useState(true);
   const [showSources, setShowSources] = useState(false);
@@ -142,7 +148,7 @@ export function Monitor() {
           </aside>
 
           <section className="map-panel">
-            <div className="map-canvas"><RailMap runs={positioned} now={now} selectedId={selectedId} onSelect={setSelectedId} follow={follow} showStations={showStations} zoomAction={zoomAction}/></div>
+            <div className="map-canvas"><RailMap runs={positioned} now={now} trail={trail} selectedId={selectedId} onSelect={setSelectedId} follow={follow} showStations={showStations} zoomAction={zoomAction}/></div>
             <div className="map-grid"/>
             <div className="map-top">
               <span className="map-title">POSICIONES REPORTADAS<span className="map-region">GRAN BRETAÑA</span></span>
@@ -158,7 +164,7 @@ export function Monitor() {
           </section>
 
           <aside className="inspector">
-            {selected ? <Inspector run={selected} now={now} follow={follow} onFollow={() => setFollow(value => !value)} onClose={() => setSelectedId(null)}/>
+            {selected ? <Inspector run={selected} now={now} trail={trail} follow={follow} onFollow={() => setFollow(value => !value)} onClose={() => setSelectedId(null)}/>
               : <div className="inspector-empty"><Activity size={22}/><h2>Sin selección</h2><p>Elige una circulación en la lista o toca un punto del mapa.</p></div>}
           </aside>
         </section>
@@ -188,7 +194,7 @@ export function Monitor() {
   );
 }
 
-function Inspector({run, now, follow, onFollow, onClose}: {run: LiveRun; now: number; follow: boolean; onFollow: () => void; onClose: () => void}) {
+function Inspector({run, now, trail, follow, onFollow, onClose}: {run: LiveRun; now: number; trail: Trail | null; follow: boolean; onFollow: () => void; onClose: () => void}) {
   const state = freshness(run.observedAt, now);
   return (
     <>
@@ -220,6 +226,33 @@ function Inspector({run, now, follow, onFollow, onClose}: {run: LiveRun; now: nu
       <button type="button" className={`follow-button ${follow ? "following" : ""}`} onClick={onFollow} disabled={!run.coordinate}>
         <Focus size={14}/>{follow ? "Dejar de seguir" : "Seguir en el mapa"}
       </button>
+
+      <div className="detail-divider"/>
+      <div className="detail-section-title">
+        <h3>Por dónde ha pasado</h3>
+        <span>{trail ? `${trail.withCoordinate} DE ${trail.reported}` : "…"}</span>
+      </div>
+      {trail && trail.reported > 0 ? (
+        <>
+          <ol className="stop-list">
+            {trail.points.slice().reverse().map((point, index) => (
+              <li key={`${point.observedAt}-${point.stanox}-${index}`} className={`stop ${point.coordinate ? "" : "unmapped"}`}>
+                <span className="stop-track"><i/><span/></span>
+                <span className="stop-name">
+                  {point.name ?? <span className="mono">{point.stanox}</span>}
+                  <small>{point.eventType === "ARRIVAL" ? "llegada" : point.eventType === "DEPARTURE" ? "salida" : "paso"}{point.coordinate ? "" : " · sin coordenada"}</small>
+                </span>
+                <span className="mono">{hhmm.format(new Date(point.observedAt))}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="map-caption-sub">
+            Reconstruido desde los eventos originales. Los puntos sin coordenada no se dibujan, así que la línea del mapa salta por encima de ellos y <strong>no sigue la vía</strong>.
+          </p>
+        </>
+      ) : (
+        <p className="map-caption-sub">{trail ? "Sin reportes anteriores dentro de la ventana." : "Cargando recorrido…"}</p>
+      )}
       <div className="inspector-footer"><span>POSICIÓN DE ESTACIÓN</span><span>{state === "stale" ? "DATO ENVEJECIDO" : "NO ES GPS"}</span></div>
     </>
   );

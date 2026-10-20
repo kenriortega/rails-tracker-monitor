@@ -190,3 +190,11 @@ h1>span { color:var(--accent); }
 .follow-button:disabled { opacity:.45; }
 .train-row.stale .service-code { color:#8ea295; }
 .train-row.stale .train-row-bottom span:first-child { color:#9a8f6d; }
+
+/* Recorrido reconstruido: los puntos sin coordenada se marcan como tales. */
+.stop-list { margin-top:14px; }
+.stop { padding-bottom:12px; }
+.stop-name { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+.stop-name small { color:#7d9185; font-size:8px; letter-spacing:.3px; }
+.stop.unmapped .stop-name { color:#8a9b90; }
+.stop.unmapped .stop-track>i { border-style:dashed; border-color:#5d7466; }

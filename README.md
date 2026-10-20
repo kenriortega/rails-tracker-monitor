@@ -6,6 +6,8 @@ Central ferroviaria experimental con Next.js, shadcn/ui, MapLibre y una base de 
 
 Central de operaciones sobre **datos reales** de Network Rail. El feed MOVEMENT se ingiere, se proyecta y se sirve al navegador: snapshot inicial y cambios en vivo por SSE, con el mapa dibujando las posiciones reportadas sobre capas WebGL.
 
+Al seleccionar una circulación se dibuja **por dónde ha pasado**, reconstruido desde `raw_events`. `train_positions` guarda solo la posición actual, así que el recorrido no está proyectado: se deriva de los eventos y por tanto solo alcanza hasta donde llegue la retención. La línea es discontinua a propósito, porque une puntos reportados y **no sigue la vía**; además salta por encima de las ubicaciones que no resuelven a coordenada, que son mayoría en cruces y bucles.
+
 Solo se sirven las circulaciones que han reportado en las últimas dos horas; las que llevan más de quince minutos sin señal se marcan como tales y se atenúan en el mapa. Más límites que la propia interfaz declara: son **reportes de paso por ubicaciones, no GPS**; las marcas de tiempo tienen **resolución de un minuto**; y alrededor de una cuarta parte de las circulaciones **no resuelve a una coordenada** y solo aparece en una lista aparte. El headcode se extrae del identificador de circulación. Origen y destino dependen del horario, enlazado en una fracción mínima de los trenes. Nunca usar este proyecto para decisiones operativas o de viaje.
 
 ## Ejecutar
@@ -111,6 +113,7 @@ Esta entrega solo escribe `raw_events`. No proyecta posiciones ni alimenta la in
 Con la base levantada y la proyección al día, el servidor de desarrollo expone:
 
 - `GET /api/snapshot`: circulaciones con reporte en las últimas dos horas, con una `version` que sirve de cursor.
+- `GET /api/runs/<id>/trail`: por dónde ha pasado esa circulación, reconstruido desde los eventos originales.
 - `GET /api/stations`: estaciones con coordenada, para la capa de contexto.
 - `GET /api/stream`: cambios por SSE. Acepta `?since=<version>` y respeta la cabecera `Last-Event-ID`, así que una reconexión entrega solo lo posterior.
 

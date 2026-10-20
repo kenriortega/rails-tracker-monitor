@@ -30,7 +30,9 @@ export const rawEvents = pgTable("raw_events", {
   payload: jsonb("payload").notNull(),
 }, table => [uniqueIndex("raw_event_deduplication").on(table.feed, table.deduplicationKey),
    /** La poda recorre por recepción; sin este índice barrería la tabla entera. */
-   index("raw_event_received_at").on(table.receivedAt)]);
+   index("raw_event_received_at").on(table.receivedAt),
+   /** El recorrido de un tren se reconstruye filtrando por su identificador. */
+   index("raw_event_train_id").on(sql`((${table.payload}->'body'->>'train_id'))`)]);
 export const trainPositions = pgTable("train_positions", {
   runId: uuid("run_id").primaryKey().references(() => serviceRuns.id),
   point: geometry("point", {type: "point", mode: "tuple", srid: 4326}),

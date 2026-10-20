@@ -1,0 +1,1 @@
+CREATE INDEX "raw_event_train_id" ON "raw_events" USING btree ((("payload"->'body'->>'train_id')));

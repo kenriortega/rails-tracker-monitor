@@ -50,6 +50,13 @@
       "when": 1792456180877,
       "tag": "0006_graceful_yellowjacket",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792458903792,
+      "tag": "0007_chunky_goblin_queen",
+      "breakpoints": true
     }
   ]
 }

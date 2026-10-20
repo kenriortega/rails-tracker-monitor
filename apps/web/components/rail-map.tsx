@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { Map as LibreMap } from "maplibre-gl";
-import { freshness, type LiveRun } from "@rails/domain";
+import { freshness, type LiveRun, type Trail } from "@rails/domain";
 
 interface Station { tiploc: string; crs: string; name: string; lon: number; lat: number }
 
 interface Props {
   runs: LiveRun[];
   now: number;
+  trail: Trail | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
   follow: boolean;
@@ -44,7 +45,7 @@ function toFeatures(runs: LiveRun[], now: number) {
  * Una capa WebGL en lugar de un marcador DOM por tren: el feed nacional entrega
  * miles de circulaciones y el DOM no sostiene ese volumen.
  */
-export default function RailMap({runs, now, selectedId, onSelect, follow, showStations, zoomAction}: Props) {
+export default function RailMap({runs, now, trail, selectedId, onSelect, follow, showStations, zoomAction}: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | null>(null);
   const selectRef = useRef(onSelect);
@@ -94,6 +95,17 @@ export default function RailMap({runs, now, selectedId, onSelect, follow, showSt
       map.addLayer({id: "station-dot", type: "circle", source: "stations",
         paint: {"circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 1.2, 12, 3], "circle-color": "#6f8f7a", "circle-opacity": 0.55}});
 
+      map.addSource("trail", {type: "geojson", data: {type: "FeatureCollection", features: []}});
+      // Discontinua a propósito: une puntos reportados, no sigue la vía.
+      map.addLayer({id: "trail-line", type: "line", source: "trail",
+        filter: ["==", ["geometry-type"], "LineString"],
+        layout: {"line-cap": "round", "line-join": "round"},
+        paint: {"line-color": "#7fd3a0", "line-width": 1.6, "line-opacity": 0.55, "line-dasharray": [2, 2]}});
+      map.addLayer({id: "trail-point", type: "circle", source: "trail",
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: {"circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2, 12, 4],
+                "circle-color": "#0c1512", "circle-stroke-width": 1.2, "circle-stroke-color": "#7fd3a0"}});
+
       map.addSource("trains", {type: "geojson", data: {type: "FeatureCollection", features: []}});
       map.addLayer({id: "train-halo", type: "circle", source: "trains",
         paint: {"circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 6, 12, 14], "circle-color": TRAIN_COLOR, "circle-opacity": 0.14}});
@@ -139,6 +151,28 @@ export default function RailMap({runs, now, selectedId, onSelect, follow, showSt
       }))
     });
   }, [ready, stations]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const source = map.getSource("trail") as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    const coordinates: [number, number][] = [];
+    for (const point of trail?.points ?? []) {
+      if (!point.coordinate) continue;
+      const previous = coordinates[coordinates.length - 1];
+      // Llegada y salida de la misma estación comparten punto: no se repite.
+      if (previous && previous[0] === point.coordinate[0] && previous[1] === point.coordinate[1]) continue;
+      coordinates.push(point.coordinate);
+    }
+    const features: GeoJSON.Feature[] = coordinates.map(coordinate => ({
+      type: "Feature", properties: {}, geometry: {type: "Point", coordinates: coordinate}
+    }));
+    if (coordinates.length > 1) {
+      features.push({type: "Feature", properties: {}, geometry: {type: "LineString", coordinates}});
+    }
+    source.setData({type: "FeatureCollection", features});
+  }, [ready, trail]);
 
   useEffect(() => {
     const map = mapRef.current;

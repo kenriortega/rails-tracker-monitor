@@ -14,7 +14,7 @@ La reproducción es determinista a partir de un instante fijo (19 de octubre de 
 
 ## Preparado
 
-Drizzle describe ubicaciones, segmentos, horarios, circulaciones, eventos originales y posiciones actuales. La conexión PostgreSQL es explícita y bajo demanda, nunca necesaria para compilar o abrir la demo. `compose.yaml` provisiona PostgreSQL 16 con PostGIS 3.5 para desarrollo local y las dos migraciones ya se aplicaron y verificaron contra esa instancia. PostGIS almacena puntos WGS84 y líneas; los índices GiST permitirán filtros espaciales. No usar grados como unidades métricas para distancias operativas: transformar a proyección adecuada o usar geography según la consulta.
+Drizzle describe ubicaciones, segmentos, horarios, circulaciones, eventos originales y posiciones actuales. La conexión PostgreSQL es explícita y bajo demanda, nunca necesaria para compilar o abrir la demo. `infra-common`, a nivel del workspace, provisiona un PostgreSQL 16 con PostGIS 3.5 compartido entre proyectos, donde este ocupa el esquema `rails` y las dos migraciones ya se aplicaron y verificaron contra esa instancia. PostGIS almacena puntos WGS84 y líneas; los índices GiST permitirán filtros espaciales. No usar grados como unidades métricas para distancias operativas: transformar a proyección adecuada o usar geography según la consulta.
 
 ## Próxima arquitectura operativa
 

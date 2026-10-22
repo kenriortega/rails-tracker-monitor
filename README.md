@@ -24,8 +24,17 @@ Guía completa de operación. Las secciones siguientes detallan cada pieza; esta
 
 ### Primera vez, o tras borrar el volumen
 
+La base ya no vive en este repositorio: la levanta `infra-common`, compartida
+con los demás proyectos del workspace, con separación lógica por esquema. Este
+proyecto ocupa el esquema `rails` y entra con el rol `rails_app`, cuyo
+`search_path` lo apunta ahí, de modo que las consultas no cualifican ningún
+nombre de tabla.
+
 ```sh
-docker compose up -d
+cd ../infra-common && docker compose --env-file .env up -d && cd -
+```
+
+```sh
 npm run db:migrate
 ```
 
@@ -45,7 +54,7 @@ La descarga de NaPTAN ronda los 580 MB y la carga tarda unos ocho segundos. El h
 Tres terminales, o los dos primeros en segundo plano:
 
 ```sh
-docker compose up -d
+cd ../infra-common && docker compose --env-file .env up -d && cd -
 ```
 
 ```sh
@@ -82,10 +91,10 @@ NaPTAN cambia poco: con rehacerlo cada pocos meses basta.
 ### Apagar
 
 ```sh
-docker compose down
+cd ../infra-common && docker compose --env-file .env down && cd -
 ```
 
-Detén antes el consumidor, la proyección y el servidor de desarrollo con Ctrl+C. `docker compose down` **conserva los datos** en el volumen `rails-tracker-monitor_rails-tracker-pgdata`; añadir `-v` los borra y obliga a repetir la primera vez.
+Detén antes el consumidor, la proyección y el servidor de desarrollo con Ctrl+C. `docker compose down` en `infra-common` **conserva los datos** en su volumen; añadir `-v` los borra, y con ellos los de todos los proyectos que comparten esa base.
 
 ### Comprobar que todo sigue sano
 
@@ -109,13 +118,13 @@ Se usa Webpack en lugar de Turbopack porque este último no pudo abrir sus puert
 La demo no la necesita. Hace falta para la ingesta persistente que viene.
 
 ```sh
-docker compose up -d
+cd ../infra-common && docker compose --env-file .env up -d && cd -
 npm run db:migrate
 ```
 
-Levanta PostgreSQL 16 con PostGIS 3.5 en `127.0.0.1:5434` y aplica las migraciones de `packages/db/drizzle`. El puerto no es el 5432 habitual porque en la máquina de desarrollo ya lo ocupaban otros proyectos; `DATABASE_URL` en `.env` debe coincidir con el del `compose.yaml`. La imagen solo publica amd64, así que en Apple Silicon corre emulada.
+Levanta PostgreSQL 16 con PostGIS 3.5 en `127.0.0.1:5435` y aplica las migraciones de `packages/db/drizzle`. La base es compartida por los proyectos del workspace, con separación lógica por esquema: este ocupa `rails` y entra con el rol `rails_app`, cuyo `search_path` lo apunta ahí. La imagen solo publica amd64, así que en Apple Silicon corre emulada.
 
-Las credenciales del contenedor son triviales a propósito: escucha solo en localhost y nunca recibe datos de producción. `docker compose down` lo detiene; añadir `-v` borra también el volumen y con él los datos.
+Las credenciales son triviales a propósito: escucha solo en localhost y nunca recibe datos de producción. **Cuidado con `-v`:** esa base la comparten varios proyectos, así que `docker compose down -v` en `infra-common` borra también los datos de los demás.
 
 ## Carga de ubicaciones
 

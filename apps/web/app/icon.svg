@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Rails, centro de operaciones">
+  <!-- Paleta de la interfaz: fondo casi negro, borde apagado, el verde menta
+       que domina la aplicacion y el ambar con el que marca los avisos. -->
+  <rect width="32" height="32" rx="7" fill="#07100c"/>
+  <rect x="0.5" y="0.5" width="31" height="31" rx="6.5" fill="none" stroke="#202b27"/>
+  <!-- El frente de un tren, y no una via en fuga. Dos carriles que convergen
+       con sus traviesas se leen como una escalera en cuanto el icono baja a
+       16 px: la perspectiva no sobrevive a ese tamano, la silueta si. -->
+  <rect x="9" y="5.5" width="14" height="19" rx="5" fill="#a0ebbc"/>
+  <!-- Parabrisas partido. -->
+  <rect x="11.2" y="9" width="4" height="4.6" rx="1.2" fill="#07100c"/>
+  <rect x="16.8" y="9" width="4" height="4.6" rx="1.2" fill="#07100c"/>
+  <!-- Faros encendidos. -->
+  <circle cx="12.6" cy="20" r="1.5" fill="#f4c76a"/>
+  <circle cx="19.4" cy="20" r="1.5" fill="#f4c76a"/>
+  <!-- La via bajo el tren, apenas insinuada. -->
+  <path d="M6.5 27.5 L25.5 27.5" stroke="#a0ebbc" stroke-width="1.6" stroke-linecap="round" opacity="0.55"/>
+</svg>

@@ -81,7 +81,7 @@ La proyección produce `reported` cuando el STANOX resuelve a un punto único y 
 
 ## Reglas de la próxima ingesta
 
-Guardar el evento original antes de proyectar. Confirmar mensajes únicamente después de persistencia duradera. Ambas reglas ya se cumplen en `apps/ingestor/src/consumer.ts`.
+Guardar el evento original antes de proyectar. Confirmar mensajes únicamente después de persistencia duradera. Ambas reglas ya se cumplen en `apps/ingestor-go/cmd/ingestor`.
 
 La clave de deduplicación de `raw_events` es el **SHA-256 del registro serializado con las claves ordenadas**. Deduplica reentregas del mismo mensaje, que es lo que un registro de auditoría debe evitar; no intenta decidir si dos eventos distintos describen lo mismo. Esa decisión semántica corresponde a la proyección, que sí tiene contexto. Se descartó una clave compuesta por `msg_type`, `train_id`, `event_type`, `loc_stanox` y `actual_timestamp`: con marcas de resolución de un minuto, dos eventos legítimos del mismo tren en la misma ubicación y el mismo minuto habrían colapsado en uno. El orden de claves de `jsonb` no afecta al hash, verificado releyendo 200 payloads almacenados. Guardar orden de recepción y tiempo del evento por separado. No descartar automáticamente correcciones por tener timestamp antiguo. Registrar los huecos por desconexión y reconstruir cuando sea posible; nunca prometer replay de intervalos que no se capturaron.
 

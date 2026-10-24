@@ -38,13 +38,16 @@ cd ../infra-common && docker compose --env-file .env up -d && cd -
 npm run db:migrate
 ```
 
+Los programas de ingesta son los de `apps/ingestor-go`; todas las órdenes que siguen se lanzan desde ese directorio.
+
 ```sh
 curl -o naptan.xml "https://naptan.api.dft.gov.uk/v1/access-nodes?dataFormat=xml"
-npm run import:naptan -- --file=naptan.xml
+cd apps/ingestor-go
+go run ./cmd/import-naptan --file=../../naptan.xml
 ```
 
 ```sh
-npm run import:schedule
+go run ./cmd/import-schedule
 ```
 
 La descarga de NaPTAN ronda los 580 MB y la carga tarda unos ocho segundos. El horario se descarga solo y tarda unos ocho minutos. Después puedes borrar `naptan.xml`.
@@ -58,11 +61,11 @@ cd ../infra-common && docker compose --env-file .env up -d && cd -
 ```
 
 ```sh
-npm run ingest
+cd apps/ingestor-go && go build -o bin/ingestor ./cmd/ingestor && ./bin/ingestor
 ```
 
 ```sh
-npm run project -- --loop=60
+cd apps/ingestor-go && go run ./cmd/project --loop=60
 ```
 
 ```sh
@@ -73,18 +76,20 @@ Abrir http://127.0.0.1:3000. Tarda un par de minutos en tener trenes suficientes
 
 ### Mantenimiento
 
-**La poda no se ejecuta sola.** Con el consumidor en marcha de forma permanente, la base crece unos 370 MB al día:
+**La poda no se ejecuta sola en local.** Con el consumidor en marcha de forma permanente, la base crece unos 370 MB al día:
 
 ```sh
-npm run prune -- --dry-run
-npm run prune
+go run ./cmd/prune --dry-run
+go run ./cmd/prune
 ```
 
 **El horario caduca.** Vuelve a importarlo cada día, o el origen y el destino dejarán de resolverse para los trenes nuevos:
 
 ```sh
-npm run import:schedule
+go run ./cmd/import-schedule
 ```
+
+En producción las dos tareas sí van solas, con temporizadores de systemd: `trackers-rails-schedule.timer` a las 02:00 y `trackers-rails-prune.timer` a las 03:30. Están definidos en el repositorio `infra-common`.
 
 NaPTAN cambia poco: con rehacerlo cada pocos meses basta.
 
@@ -139,7 +144,7 @@ Las credenciales son triviales a propósito: escucha solo en localhost y nunca r
 
 ```sh
 curl -o naptan.xml "https://naptan.api.dft.gov.uk/v1/access-nodes?dataFormat=xml"
-npm run import:naptan -- --file=naptan.xml
+cd apps/ingestor-go && go run ./cmd/import-naptan --file=../../naptan.xml
 ```
 
 Carga las estaciones de NaPTAN en `locations` con sus coordenadas WGS84. El fichero ronda los 580 MB porque el TIPLOC solo aparece en el XML; el CSV de NaPTAN no lo incluye. La carga es idempotente: repetirla actualiza las filas existentes en lugar de duplicarlas. Si hay credenciales de Network Rail, además rellena el STANOX desde CORPUS.
@@ -151,14 +156,14 @@ Contiene datos de NaPTAN del Department for Transport, bajo [Open Government Lic
 ## Proyección
 
 ```sh
-npm run project
-npm run project -- --loop=60
-npm run project -- --reset
+go run ./cmd/project
+go run ./cmd/project --loop=60
+go run ./cmd/project --reset
 ```
 
 Lee `raw_events` con un cursor y mantiene `service_runs` y `train_positions`. Va **aparte de la ingesta a propósito**: un error de proyección no detiene la captura, y `--reset` permite rehacerla desde cero tras corregir la lógica.
 
-Para ingesta continua se lanzan los dos procesos a la vez, el consumidor y la proyección con `--loop`. Ambos paran con Ctrl+C o `SIGTERM`. **La poda no se ejecuta sola**: con el consumidor en marcha de forma permanente, `npm run prune` debe ejecutarse periódicamente o la base crecerá unos 370 MB diarios.
+Para ingesta continua se lanzan los dos procesos a la vez, el consumidor y la proyección con `--loop`. Ambos paran con Ctrl+C o `SIGTERM`, pero **`go run` no reenvía SIGTERM**: para un proceso de larga vida hay que compilar primero (`go build -o bin/ingestor ./cmd/ingestor`), o un Ctrl+C deja el ingestor huérfano hablando con el feed. **La poda no se ejecuta sola en local**: con el consumidor en marcha de forma permanente, `go run ./cmd/prune` debe ejecutarse periódicamente o la base crecerá unos 370 MB diarios.
 
 Una posición solo es `reported` cuando su STANOX resuelve a un punto único en `locations`. Si no resuelve, o si resuelve a puntos distintos, queda `unknown` **sin coordenada inventada**.
 
@@ -167,8 +172,8 @@ Dos limitaciones declaradas: la fecha de servicio se deriva de la fecha londinen
 ## Importación del horario
 
 ```sh
-npm run import:schedule
-npm run import:schedule -- --date=2026-10-21 --file=schedule.json.gz
+go run ./cmd/import-schedule
+go run ./cmd/import-schedule --date=2026-10-21 --file=schedule.json.gz
 ```
 
 Descarga SCHEDULE, conserva solo los horarios cuya validez cubre la fecha indicada y los guarda en `schedules`. Medido: 815.030 líneas, **94.505 horarios vigentes y 241 MB de tabla**, en unos ocho minutos. Importar el fichero entero multiplicaría ese volumen sin poder aprovecharlo.
@@ -178,8 +183,8 @@ Descarga SCHEDULE, conserva solo los horarios cuya validez cubre la fecha indica
 ## Retención
 
 ```sh
-npm run prune -- --dry-run
-npm run prune -- --days=7
+go run ./cmd/prune --dry-run
+go run ./cmd/prune --days=7
 ```
 
 Borra los eventos originales fuera de la ventana y las proyecciones que ya no se sirven. **Nunca borra por delante del cursor de proyección**: si la proyección va retrasada o está detenida, retiene los eventos en lugar de perderlos sin proyectar.
@@ -188,13 +193,15 @@ Medido sobre datos reales: 1.229 bytes por fila y unos 210 eventos por minuto de
 
 El coste de esta política es explícito: **más allá de la ventana no se puede reproyectar**. Esa capacidad es la que permite corregir la lógica y rehacer el estado, así que acortar la ventana tiene un precio real.
 
-El comando se ejecuta a mano. Programarlo es una decisión de operación, no de código.
+En local el comando se ejecuta a mano. En el VPS lo lanza `trackers-rails-prune.timer` cada madrugada, con la misma imagen y otro `entrypoint`.
 
 ## Ingesta persistente
 
 ```sh
-npm run ingest
+go build -o bin/ingestor ./cmd/ingestor && ./bin/ingestor
 ```
+
+Compilar antes de ejecutar no es manía: `go run` no reenvía SIGTERM, así que un proceso interrumpido así se queda huérfano hablando con el feed.
 
 Consume MOVEMENT y guarda cada registro en `raw_events`. Requiere la base levantada y las credenciales en `.env`. Se detiene con Ctrl+C: deja de confirmar mensajes, espera la escritura en curso y cierra la conexión y el pool.
 

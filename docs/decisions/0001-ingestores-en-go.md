@@ -1,8 +1,7 @@
 # ADR 0001: Ingestores en Go
 
-**Estado:** aceptado y desplegado el 24 de octubre de 2026. Los dos primeros
-criterios de terminación están comprobados contra tráfico real; queda el
-tercero: `apps/ingestor` sigue en el repositorio.
+**Estado:** aceptado, desplegado y cerrado el 24 de octubre de 2026. Los tres
+criterios de terminación están cumplidos.
 
 ## Contexto
 
@@ -125,10 +124,9 @@ a columna. Aquí la paridad está cubierta por pruebas —incluidos los hashes d
 deduplicación contra los que produce JavaScript— pero no por una ejecución en
 paralelo de los dos consumidores sobre el mismo feed.
 
-**Los dos ingestores conviven.** Mientras `apps/ingestor` siga en el
-repositorio, cualquier cambio de lógica hay que hacerlo dos veces. Esa deuda se
-cierra retirando el de TypeScript, y eso no debería tardar: en ships convivir
-resultó ser la parte más incómoda del cambio.
+**Los dos ingestores convivieron**, y mientras lo hicieron cualquier cambio de
+lógica había que hacerlo dos veces. Esa deuda se cerró el mismo día que se
+desplegó el de Go, así que la convivencia duró horas y no semanas.
 
 ## Lo medido al desplegar
 
@@ -170,5 +168,6 @@ de la prueba.
 2. ~~Un periodo con los dos consumidores escribiendo sobre la misma base, que la
    clave de deduplicación hace seguro, comprobando que no aparecen duplicados.~~
    **Hecho** el 24 de octubre de 2026: cero duplicados en 9.701 filas.
-3. `apps/ingestor` retirado, dejando `diagnose` como único programa en
-   TypeScript. **Pendiente**, y es lo único que queda.
+3. ~~`apps/ingestor` retirado, dejando `diagnose` como único programa en
+   TypeScript.~~ **Hecho** el 24 de octubre de 2026: se fueron los cinco
+   programas y los módulos que solo ellos usaban, 1.221 líneas.

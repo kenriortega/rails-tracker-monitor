@@ -105,6 +105,15 @@ npm run build
 npm run diagnose:network-rail
 ```
 
+## Ingestores en Go
+
+Los cinco programas de ingesta están portados a Go en
+[`apps/ingestor-go`](apps/ingestor-go/), por memoria: en el proyecto hermano el
+mismo cambio bajó un worker de ~120 MB de RSS a 7,7 MB, y aquí los procesos
+permanentes son dos. **Todavía no es lo que se ejecuta**; los dos árboles
+conviven hasta desplegarlo y medirlo. El [ADR 0001](docs/decisions/0001-ingestores-en-go.md)
+explica las decisiones y lo que falta para darlo por terminado.
+
 ## Notas del entorno
 
 El mapa base descarga teselas vectoriales de OpenFreeMap/OpenStreetMap, así que necesita conexión a internet. Si fallan, los trenes se siguen dibujando sobre el fondo oscuro; si no hay WebGL, el mapa desaparece pero la lista y el inspector siguen funcionando.

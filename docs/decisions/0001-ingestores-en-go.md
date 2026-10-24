@@ -1,7 +1,8 @@
 # ADR 0001: Ingestores en Go
 
-**Estado:** aceptado. El port está completo y probado, pero **no desplegado**:
-`apps/ingestor` sigue en el repositorio y sigue siendo lo que se ejecuta.
+**Estado:** aceptado y desplegado el 24 de octubre de 2026. Los dos primeros
+criterios de terminación están comprobados contra tráfico real; queda el
+tercero: `apps/ingestor` sigue en el repositorio.
 
 ## Contexto
 
@@ -129,10 +130,45 @@ repositorio, cualquier cambio de lógica hay que hacerlo dos veces. Esa deuda se
 cierra retirando el de TypeScript, y eso no debería tardar: en ships convivir
 resultó ser la parte más incómoda del cambio.
 
+## Lo medido al desplegar
+
+El 24 de octubre de 2026 los dos procesos entraron en el VPS y se comprobaron
+los dos primeros criterios.
+
+**El RSS, que hasta entonces era una extrapolación del de ships:**
+
+| Proceso | RSS |
+|---|---|
+| `rails-ingestor` | 6,77 MiB |
+| `rails-project` | 6,83 MiB |
+
+13,6 MiB entre los dos, por debajo de los ~20 MB estimados.
+
+**La paridad contra tráfico real**, con los dos consumidores suscritos al mismo
+feed y escribiendo sobre la misma base durante cuatro minutos —el de Go en el
+VPS, el de TypeScript en el portátil por un túnel SSH—:
+
+| Ventana | Filas | Filas/min | Duplicados |
+|---|---|---|---|
+| Solo Go | 7.078 | 499,1 | **0** |
+| Go + TypeScript | 2.488 | 483,6 | **0** |
+
+`count(*)` y `count(DISTINCT deduplication_key)` coincidieron en todo momento.
+
+Lo que cierra la cuestión no es solo el cero de duplicados, sino el ritmo: con
+dos consumidores escribiendo el mismo feed, las filas por minuto no subieron
+—bajaron un 3 %, dentro del ruido del propio feed—. Si la clave de
+deduplicación no estuviera colapsando los dos flujos, el ritmo habría llegado
+a doblarse. La forma canónica compatible con `JSON.stringify` produce el mismo
+hash en los dos lenguajes sobre datos reales, y no solo sobre las ocho cargas
+de la prueba.
+
 ## Cómo se decidirá que está terminado
 
-1. Los dos procesos permanentes corriendo en el VPS con el RSS medido.
-2. Un periodo con los dos consumidores escribiendo sobre la misma base, que la
-   clave de deduplicación hace seguro, comprobando que no aparecen duplicados.
+1. ~~Los dos procesos permanentes corriendo en el VPS con el RSS medido.~~
+   **Hecho** el 24 de octubre de 2026.
+2. ~~Un periodo con los dos consumidores escribiendo sobre la misma base, que la
+   clave de deduplicación hace seguro, comprobando que no aparecen duplicados.~~
+   **Hecho** el 24 de octubre de 2026: cero duplicados en 9.701 filas.
 3. `apps/ingestor` retirado, dejando `diagnose` como único programa en
-   TypeScript.
+   TypeScript. **Pendiente**, y es lo único que queda.
